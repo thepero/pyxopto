@@ -456,6 +456,10 @@ __kernel void McKernel(
 		(void)detectors;
 	#endif
 
+	#if MC_USE_SCATTERING_THRESHOLD
+		mc_int_t scatter_count;	/* flag to count the number of scattering events*/
+	#endif
+
 	/* check if photon packets have to be launched by this thread */
 	if ((sim.state.photon_index = pkt_cnt_atomic_inc(num_packets_done)) < num_packets) {
 
@@ -518,6 +522,11 @@ __kernel void McKernel(
 		#if MC_USE_TRACE & MC_USE_TRACE_START
 			/* initial photon packet state */
 			mcsim_trace_this_event(&sim);
+		#endif
+
+		#if MC_USE_SCATTERING_THRESHOLD
+			/* set the scattering counter */
+			scatter_count = 0;
 		#endif
 
 		/* loop through the simulation steps until all the photon packets
@@ -644,6 +653,15 @@ __kernel void McKernel(
 					/* Scatter the photon packet. */
 						mcsim_scatter(&sim);
 						mcsim_event_flags_add(&sim, MC_EVENT_PACKET_SCATTERING);
+						#if MC_USE_SCATTERING_THRESHOLD
+							/* increment the scattering counter */
+							scatter_count++;
+							if (scatter_count > MC_SCATTERING_THRESHOLD){
+								/* if the scattering threshold is reached
+								terminate the photon packet */
+								done = true;
+							}
+						#endif
 				}
 
 				/* Perform survival lottery if required (packet not done). */
@@ -718,6 +736,15 @@ __kernel void McKernel(
 							/* Scatter the photon packet. */
 							mcsim_scatter(&sim);
 							mcsim_event_flags_add(&sim, MC_EVENT_PACKET_SCATTERING);
+							#if MC_USE_SCATTERING_THRESHOLD
+								/* increment the scattering counter */
+								scatter_count++;
+								if (scatter_count > MC_SCATTERING_THRESHOLD){
+									/* if the scattering threshold is reached
+									terminate the photon packet */
+									done = true;
+								}
+							#endif
 						}
 					#else	/* Albedo Weight */
 						/* Do absorption only when no layer boundary has been hit.*/
@@ -733,6 +760,15 @@ __kernel void McKernel(
 						/* Scatter the photon packet. */
 						mcsim_scatter(&sim);
 						mcsim_event_flags_add(&sim, MC_EVENT_PACKET_SCATTERING);
+						#if MC_USE_SCATTERING_THRESHOLD
+							/* increment the scattering counter */
+							scatter_count++;
+							if (scatter_count > MC_SCATTERING_THRESHOLD){
+								/* if the scattering threshold is reached
+								terminate the photon packet */
+								done = true;
+							}
+						#endif
 
 						/* Perform survival lottery if required (packet not done). */
 						if(mcsim_weight(&sim) < MC_PACKET_WEIGHT_MIN){
@@ -807,6 +843,11 @@ __kernel void McKernel(
 					#if MC_USE_TRACE & MC_USE_TRACE_START
 						/* initial photon packet state */
 						mcsim_trace_this_event(&sim);
+					#endif
+
+					#if MC_USE_SCATTERING_THRESHOLD
+						/* set the scattering counter */
+						scatter_count = 0;
 					#endif
 					done = false; /* have a new packet ... not done yet */
 				}

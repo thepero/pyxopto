@@ -138,7 +138,7 @@ inline int mcsim_sample_box_intersect(
 	normal->y *= mc_fsign(dir->y);
 	normal->z *= mc_fsign(dir->z);
 
-	mc_fp_t t = (tmin > FP_0) ? tmin : tmax;
+	mc_fp_t t = (tmin >= FP_0) ? tmin : tmax;
 
 	dbg_print_float("t:", t);
 

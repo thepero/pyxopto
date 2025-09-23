@@ -24,6 +24,7 @@ from .base import Source
 from .point import IsotropicPoint
 from .line import Line
 from .uniformbeam import UniformBeam
+from .uniformrectangularbeam import UniformRectangularBeam
 from .gaussianbeam import GaussianBeam
 from .fiber import UniformFiber, LambertianFiber, UniformFiberLut
 from .voxel import IsotropicVoxel, IsotropicVoxels

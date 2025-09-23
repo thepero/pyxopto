@@ -355,6 +355,9 @@ class Detectors(mcobject.McObject):
             use_detectors = True
         if use_detectors:
             options.append(('MC_USE_DETECTORS', True))
+        if type(self._scattering_threshold) == int and self._scattering_threshold > 0:
+            options.append(('MC_USE_SCATTERING_THRESHOLD', True))
+            options.append(('MC_SCATTERING_THRESHOLD', self._scattering_threshold))
 
         return options
 
@@ -413,7 +416,8 @@ class Detectors(mcobject.McObject):
         ))
 
     def __init__(self, top: Detector or 'Detectors' = None,
-                 bottom: Detector = None, specular: Detector = None):
+                 bottom: Detector = None, specular: Detector = None, 
+                 scattering_threshold: int = 0):
         '''
         Create an instance of simulator detectors.
 
@@ -427,6 +431,8 @@ class Detectors(mcobject.McObject):
             Detector at the bottom sample surface or None
         specular: DetectorBase
             Detector of specular reflections or None.
+        scattering_threshold: int
+            The threshold for scattering events.
         '''
         super().__init__()
         if isinstance(top, Detectors):
@@ -455,6 +461,8 @@ class Detectors(mcobject.McObject):
         self._top = top
         self._bottom = bottom
         self._specular = specular
+        self._scattering_threshold = scattering_threshold
+
 
     def update_data(self, mc: mcobject.McObject, detector: Detector or str,
                     data: Dict[np.dtype, List[np.ndarray]],
@@ -557,12 +565,13 @@ class Detectors(mcobject.McObject):
             'type': self.__class__.__name__,
             'top': self._top.todict(),
             'bottom': self._bottom.todict(),
-            'specular': self._specular.todict()
+            'specular': self._specular.todict(),
+            'scattering_threshold': self._scattering_threshold
         }
 
     def __str__(self):
-        return 'Detectors(top={}, bottom={}, specular={})'.format(
-            self._top, self._bottom, self._specular)
+        return 'Detectors(top={}, bottom={}, specular={}, scattering_threshold={})'.format(
+            self._top, self._bottom, self._specular, self._scattering_threshold)
 
     def __repr__(self):
         return '{} #{}'.format(self.__str__(), id(self))

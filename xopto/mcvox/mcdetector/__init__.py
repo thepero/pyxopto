@@ -24,6 +24,7 @@ from .base import Detectors, Detector, DetectorDefault
 from .total import Total, TotalLut
 from .radial import Radial
 from .radialpl import RadialPl
+from .radialoct import RadialOct
 from .cartesian import Cartesian
 from .cartesianpl import CartesianPl
 from .symmetric import SymmetricX
