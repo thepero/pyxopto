@@ -1039,9 +1039,7 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
         # download the detector data and update the detectors
         detectors_res = out[2]
         if self._detectors is not None:
-            print(self._detectors)
             for detector in self._detectors:
-                print(detector)
                 with self.np_allocators as np_allocators:
                     all_data = self._download_allocated_buffers(
                         detector, np_allocators, nphotons)
