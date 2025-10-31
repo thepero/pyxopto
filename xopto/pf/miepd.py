@@ -23,14 +23,14 @@
 from typing import Callable, Tuple
 
 import numpy as np
-from scipy.integrate import quad, simps
+from scipy.integrate import quad, simpson
 
 from .pfbase import PfBase
 from .mie import Mie
 
 
 class MiePd(PfBase):
-    def __init__(self, nsphere: float or complex, nmedium: float or complex,
+    def __init__(self, nsphere: float | complex, nmedium: float | complex,
                  wavelength: float, pd: Callable[[float], float],
                  drange: Tuple[float, float], nd: int = 1000):
         '''
@@ -131,12 +131,12 @@ class MiePd(PfBase):
                 Scs_p[i] = mie.scs()*self._pdpts[i]
                 Ecs_p[i] = mie.ecs()*self._pdpts[i]
 
-            self._scs = simps(Scs_p, dx=self._dd)
-            self._ecs = simps(Ecs_p, dx=self._dd)
-            self._g1 = simps(G1_mie*Scs_p, dx=self._dd)/self._scs
+            self._scs = simpson(Scs_p, dx=self._dd)
+            self._ecs = simpson(Ecs_p, dx=self._dd)
+            self._g1 = simpson(G1_mie*Scs_p, dx=self._dd)/self._scs
 
     @staticmethod
-    def _g1_scs(nsphere: float or complex, nmedium: float or complex,
+    def _g1_scs(nsphere: float | complex, nmedium: float | complex,
                 d: float, wavelength: float) -> float:
         mie = Mie(nsphere, nmedium, d, wavelength)
         return mie.scs()*mie.g(1)
@@ -215,7 +215,7 @@ class MiePd(PfBase):
 
     def _mie_pd(self, Pf: np.ndarray) -> np.ndarray:
         self._pdpts.shape = (self._D.size, 1)
-        pf = simps(Pf*self._pdpts, dx=self._dd, axis=0)
+        pf = simpson(Pf*self._pdpts, dx=self._dd, axis=0)
         return pf
 
     def _mie_pd_quad(self, costheta: np.ndarray) -> np.ndarray:
@@ -228,7 +228,7 @@ class MiePd(PfBase):
         )
         return pf
 
-    def __call__(self, costheta: float or np.ndarray) -> float or np.ndarray:
+    def __call__(self, costheta: float | np.ndarray) -> float | np.ndarray:
         '''
         Call method of the phase function of a spherical particle distribution.
 

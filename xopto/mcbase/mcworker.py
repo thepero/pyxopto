@@ -181,7 +181,7 @@ class ClWorker(mcobject.McObject):
                 cl.command_queue_properties.PROFILING_ENABLE)
 
         self._cl_profiling = bool(cl_profiling)
-        cl_cq_properties = None
+        cl_cq_properties = []
         if self._cl_profiling:
             cl_cq_properties = cl.command_queue_properties.PROFILING_ENABLE
 

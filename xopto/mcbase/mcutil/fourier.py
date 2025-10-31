@@ -24,7 +24,7 @@ import numpy as np
 
 # Import the Symmetric Fourier Transform class
 from scipy.interpolate import interp1d
-from scipy.integrate import quad, simps
+from scipy.integrate import quad, simpson
 
 def _uneven(array):
     tmp = np.diff(array)

@@ -23,7 +23,7 @@
 import numpy as np
 
 from scipy.interpolate import interp1d
-from scipy.integrate import quad, simps
+from scipy.integrate import quad, simpson
 from scipy.special import j0
 
 

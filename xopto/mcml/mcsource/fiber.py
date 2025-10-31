@@ -307,10 +307,13 @@ class UniformFiber(Source):
             '	mc_fp_t cc = cos_critical(source->n, mc_layer_n(mcsim_layer(mcsim, 1)));',
             '	mc_point3f_t normal={FP_0, FP_0, FP_1};',
             '	mc_point3f_t refracted_direction = direction;',
-            '	if (pt_mc.z > cc)',
-            '		refract(&pt_mc, &normal,'
+            '   printf("Critical cosine: %.3f\\n", cc);',
+            '   printf("direction.z: %.3f\\n", direction.z);',
+            '	if (direction.z > cc)',
+            '		refract(&direction, &normal,'
             '			source->n, mc_layer_n(mcsim_layer(mcsim, 1)),',
             '			&refracted_direction);',
+            '   printf("Refracted direction: (%.3f, %.3f, %.3f)\\n", refracted_direction.x, refracted_direction.y, refracted_direction.z);',
             '	mcsim_set_direction(mcsim, &refracted_direction);',
             '',
             '	mc_fp_t specular_r = reflectance(',
@@ -327,6 +330,7 @@ class UniformFiber(Source):
             '	#endif',
             '',
             '	mcsim_set_current_layer_index(mcsim, 1);',
+            '	dbg_print_status(mcsim, "Launch UniformFiber");',
             '};',
         ))
 

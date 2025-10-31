@@ -113,7 +113,7 @@ class SymmetricX(Detector):
             '		__mc_detector_mem const Mc{}Detector *detector){{'.format(Loc),
             '	dbg_print("Mc{}Detector - SymmetricX detector:");'.format(Loc),
             '	dbg_print_point3f(INDENT "direction:", &detector->direction);',
-            '	dbg_print_float(INDENT "position_x (mm):", detector->center*1e3f);',
+            '	dbg_print_float(INDENT "position_x (mm):", detector->position_x*1e3f);',
             '	dbg_print_float(INDENT "y_offset (mm):", detector->offset*1e3f);',
             '	dbg_print_float(INDENT "inv_step (1/mm):", detector->inv_step*1e-3f);',
             '	dbg_print_float(INDENT "cos_min:", detector->cos_min);',

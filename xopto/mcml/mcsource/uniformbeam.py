@@ -96,6 +96,7 @@ class UniformBeam(Source):
         return  '\n'.join((
             'void dbg_print_source(__mc_source_mem const McSource *src){',
             '	printf("UniformBeam source:\\n");',
+            '	dbg_print_matrix3f(INDENT "transformation:", &src->transformation);',
             '	printf(INDENT "position: (%.3f, %.3f, %.3f) mm\\n",',
             '		src->position.x*1e3f, src->position.y*1e3f, src->position.z*1e3f);',
             '	printf(INDENT "direction: (%.3f, %.3f, %.3f)\\n",',

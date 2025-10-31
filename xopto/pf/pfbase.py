@@ -23,7 +23,7 @@
 from typing import Tuple
 
 import numpy as np
-from scipy.integrate import quad, simps
+from scipy.integrate import quad, simpson
 from scipy.optimize import minimize
 from scipy.interpolate import interp1d
 
@@ -56,8 +56,8 @@ def fastg(n: int, pf: np.ndarray, costheta: np.ndarray = None) -> float:
     if costheta is None:
         costheta = np.linspace(-1.0, 1.0, pf.size)
 
-    return simps(pf*np.polynomial.legendre.Legendre.basis(n)(costheta),
-                 dx=costheta[1] - costheta[0])
+    return simpson(pf*np.polynomial.legendre.Legendre.basis(n)(costheta),
+                   dx=costheta[1] - costheta[0])
 
 def fastgs(last: int, pf: np.ndarray, costheta: np.ndarray = None,
            out: np.ndarray = None):
@@ -94,13 +94,13 @@ def fastgs(last: int, pf: np.ndarray, costheta: np.ndarray = None,
         out = np.zeros([last + 1])
 
     for n in range(last + 1):
-        out[n] = simps(pf*np.polynomial.legendre.Legendre.basis(n)(costheta),
+        out[n] = simpson(pf*np.polynomial.legendre.Legendre.basis(n)(costheta),
                        dx=costheta[1] - costheta[0])
     return out
 
 
-def lut_function(costheta: float or np.ndarray, params: list or tuple) \
-        -> float or np.ndarray:
+def lut_function(costheta: float | np.ndarray, params: list | tuple) \
+        -> float | np.ndarray:
     '''
     Parametric approximation of the cumulative probability density function
     of the deflection angle cosine :math:`F(cos(\\theta))`:
@@ -160,8 +160,8 @@ def lut_function(costheta: float or np.ndarray, params: list or tuple) \
 
     return a/(b + costheta) + c
 
-def ilut_function(randnum: float or np.ndarray, params: list or tuple) \
-        -> float or np.ndarray:
+def ilut_function(randnum: float | np.ndarray, params: list | tuple) \
+        -> float | np.ndarray:
     '''
     Inverse of the parametric approximation of the cumulative probability
     density function Fap (python implementation lut_function):
@@ -215,7 +215,7 @@ class PfBase:
     '''
     The base class of all scattering phase functions.
     '''
-    def __call__(self, costheta: float or np.ndarray) -> float or np.ndarray:
+    def __call__(self, costheta: float | np.ndarray) -> float | np.ndarray:
         '''
         Call method of the scattering phase function.
 
@@ -318,7 +318,7 @@ class PfBase:
         if pf is None:
             pf = self(costheta)
 
-        return simps(pf*np.polynomial.legendre.Legendre.basis(n)(costheta),
+        return simpson(pf*np.polynomial.legendre.Legendre.basis(n)(costheta),
                      dx=costheta[1] - costheta[0])
 
     def fastgs(self, last: int, npts: int = 1000, pf: np.ndarray = None,
@@ -363,7 +363,7 @@ class PfBase:
 
         G = np.zeros([last + 1])
         for n in range(last + 1):
-            G[n] = simps(pf*np.polynomial.legendre.Legendre.basis(n)(costheta),
+            G[n] = simpson(pf*np.polynomial.legendre.Legendre.basis(n)(costheta),
                          dx=costheta[1] - costheta[0])
         return G
 

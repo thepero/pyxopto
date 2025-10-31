@@ -21,7 +21,7 @@
 ################################# End license ##################################
 
 import numpy as np
-from scipy.integrate import simps
+from scipy.integrate import simpson
 
 
 def _is_uneven(array):
@@ -85,8 +85,8 @@ def discrete_simpson(frequency: np.ndarray, xpts: np.ndarray, fpts: np.array,
     for index in range(np_freqs.size):
         f = fpts*np.exp(-2.0*np.pi*1j*xpts*np_freqs[index])
         if out.ndim > 1:
-            out[:, index] = simps(f, x, dx=dx)
+            out[:, index] = simpson(f, x, dx=dx)
         else:
-            out[index] = simps(f, x, dx=dx)
+            out[index] = simpson(f, x, dx=dx)
 
     return out
