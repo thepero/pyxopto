@@ -76,6 +76,57 @@ inline mc_fp_t mcsim_position_r2_ex(
 	return dx*dx + dy*dy;
 };
 
+/*############## Start math helper function implementations ##################*/
+/**
+ * @brief Zeroth order Bessel function of the first kind J0(x).
+ * @details Polynomial approximations from Abramowitz and Stegun 9.4.1/9.4.3.
+ *          Accuracy better than 5e-7 over all x.
+ * @param[in] x Argument.
+ * @return J0(x)
+ */
+inline mc_fp_t bessel_J0(mc_fp_t x) {
+	mc_fp_t ax = mc_fabs(x);
+
+	if (ax <= FP_LITERAL(3.0)) {
+		/* Approximation for |x| <= 3.0 */
+		mc_fp_t y = ax / FP_LITERAL(3.0);
+		mc_fp_t y2 = y * y;
+
+		return FP_LITERAL(1.0) +
+			y2 * (FP_LITERAL(-2.2499997) +
+			y2 * ( FP_LITERAL(1.2656208) +
+			y2 * (FP_LITERAL(-0.3163866) +
+			y2 * ( FP_LITERAL(0.0444479) +
+			y2 * (FP_LITERAL(-0.0039444) +
+			y2 *  FP_LITERAL(0.0002100))))));
+	} else {
+		/* Approximation for |x| > 3.0 */
+		mc_fp_t y = FP_LITERAL(3.0) / ax;
+
+		/* Amplitude f0 */
+		mc_fp_t f0 = FP_LITERAL(0.79788456) +
+			y * (FP_LITERAL(-0.00000077) +
+			y * (FP_LITERAL(-0.00552740) +
+			y * (FP_LITERAL(-0.00009512) +
+			y * ( FP_LITERAL(0.00137237) +
+			y * (FP_LITERAL(-0.00072805) +
+			y *  FP_LITERAL(0.00014476))))));
+
+		/* Phase t0 */
+		mc_fp_t t0 = ax - FP_LITERAL(0.78539816) +
+			y * (FP_LITERAL(-0.04166397) +
+			y * (FP_LITERAL(-0.00003954) +
+			y * ( FP_LITERAL(0.00262573) +
+			y * (FP_LITERAL(-0.00054125) +
+			y * (FP_LITERAL(-0.00029333) +
+			y *  FP_LITERAL(0.00013558))))));
+
+		return f0 * mc_cos(t0) / mc_sqrt(ax);
+	}
+};
+/*############### End math helper function implementations ###################*/
+
+
 /*############## Start layer boundary handler implementation #################*/
 inline mc_int_t mcsim_boundary(McSim *psim, mc_int_t nextLayerIndex){
 

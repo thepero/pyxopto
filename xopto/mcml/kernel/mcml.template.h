@@ -1001,6 +1001,27 @@ inline void mcsim_trace_complete(McSim *psim, mc_uint_t event_count);
 /*############## End Monte Carlo simulator state declarations ################*/
 
 
+/*############### Start math helper function declarations ###################*/
+/**
+ * @addtogroup mc_math_helpers Math helper functions
+ * @{
+ */
+
+/**
+ * @brief Zeroth order Bessel function of the first kind J0(x).
+ * @details Uses the polynomial approximations from Abramowitz and Stegun.
+ *          J0 is an even function: J0(-x) = J0(x).
+ * @param[in] x Argument.
+ * @return J0(x)
+ */
+inline mc_fp_t bessel_J0(mc_fp_t x);
+
+/**
+ * @} // end @addtogroup mc_math_helpers
+ */
+/*################ End math helper function declarations ####################*/
+
+
 /*############### Start layer boundary handler declarations ##################*/
 /**
  * @addtogroup mc_boundary_crossing Boundary crossing
