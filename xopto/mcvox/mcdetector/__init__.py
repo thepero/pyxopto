@@ -26,6 +26,7 @@ from .radial import Radial
 from .radialpl import RadialPl
 from .radialoct import RadialOct
 from .cartesian import Cartesian
+from .cartesianlens import CartesianLens
 from .cartesianpl import CartesianPl
 from .symmetric import SymmetricX
 

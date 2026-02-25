@@ -382,6 +382,48 @@ class Mie(PfBase):
             return pf*self._sigma_scs
         else:
             return pf
+        
+    def S1(self, costheta: float or np.ndarray) \
+                -> np.ndarray:
+        '''
+        Computes the Mie scattering function S1 at the specified
+        scattering angle cosines.
+
+        Parameters
+        ----------
+        costheta: float or np.ndarray
+            Scattering angle cosines at which the scattering function S1 is
+            evaluated.
+
+        Returns
+        -------
+        S1: np.ndarray
+            Mie scattering function S1 at the specified scattering angle
+            cosines.
+        '''
+        S1, _ = _Mie_S12(self._a, self._b, self._x, np.asarray(costheta))
+        return S1
+    
+    def S2(self, costheta: float or np.ndarray) \
+                -> np.ndarray:
+        '''
+        Computes the Mie scattering function S2 at the specified
+        scattering angle cosines.
+
+        Parameters
+        ----------
+        costheta: float or np.ndarray
+            Scattering angle cosines at which the scattering function S2 is
+            evaluated.
+
+        Returns
+        -------
+        S2: np.ndarray
+            Mie scattering function S2 at the specified scattering angle
+            cosines.
+        '''
+        _, S2 = _Mie_S12(self._a, self._b, self._x, np.asarray(costheta))
+        return S2
 
     def __repr__(self):
         return 'Mie(nsphere={}, nmedium={}, diameter={}, '\

@@ -26,6 +26,7 @@ from .totalpl import TotalPl, TotalLutPl
 from .radial import Radial
 from .radialpl import RadialPl
 from .radialoct import RadialOct
+from .radialdepthmax import RadialDepthMax
 from .cartesian import Cartesian
 from .cartesiansymmetric import CartesianSymmetricX
 from .cartesianpl import CartesianPl

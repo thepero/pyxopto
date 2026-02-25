@@ -532,7 +532,7 @@ class PfBase:
         # Cumulative probability density of the scattering phase function
         # pdf(cos(theta))
         costhetai = np.linspace(-1, 1, ncd)
-        cumpfi = self.cdf(costhetai, **kwargs)
+        cumpfi = self.cdf(costhetai, npts=ncd*2,**kwargs)
 
         # Find optimal fit of the LUT function/model to the scattering phase
         # function CDF.

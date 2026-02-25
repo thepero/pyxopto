@@ -165,6 +165,12 @@
 	#define MC_TRACK_OPTICAL_PATHLENGTH			FALSE
 #endif
 
+#if !defined(MC_TRACK_DEPTH_MAX) || defined(__DOXYGEN__)
+	/** @brief Define to TRUE to track packet depth maximum. */
+	#define MC_TRACK_DEPTH_MAX			FALSE
+#endif
+
+
 #if !defined(MC_USE_64_BIT_ACCUMULATORS)  || defined(__DOXYGEN__)
 	/** @brief Define to TRUE if 64-bit detector accumulators 
 		are to be used. */
@@ -1347,6 +1353,9 @@ struct McSimState{
 	mc_int_t layer_index;		/**< Current layer index. */
 	#if MC_TRACK_OPTICAL_PATHLENGTH || defined(__DOXYGEN__)
 	mc_fp_t optical_pathlength;		/**< Optical pathlength traveled by the photon packet. */
+	#endif
+	#if MC_TRACK_DEPTH_MAX || defined(__DOXYGEN__)
+	mc_fp_t depth_max;				/**< Maximum depth reached by the photon packet. */
 	#endif
 	#if MC_USE_TRACE || defined(__DOXYGEN__)
 	mc_uint_t trace_count;		/**< @brief Number of logged trace events since the packet launch. */
@@ -2984,6 +2993,9 @@ __kernel void McKernel(
 			#if MC_TRACK_OPTICAL_PATHLENGTH || defined(__DOXYGEN__)
 			,FP_0	/* mc_fp_t optical_pathlength: Optical pathlength traveled by the photon packet. */
 			#endif
+			#if MC_TRACK_DEPTH_MAX || defined(__DOXYGEN__)
+			,FP_0	/* mc_fp_t depth_max: Maximum depth reached by the photon packet. */ */
+			#endif
 			#if MC_USE_TRACE || defined(__DOXYGEN__)
 				,0	/* mc_uint_t trace_count: Number of traced events. */
 			#endif
@@ -3100,6 +3112,11 @@ __kernel void McKernel(
 			sim.state.optical_pathlength = FP_0;
 		#endif
 
+		/* initialize the maximum depth */
+		#if MC_TRACK_DEPTH_MAX
+			sim.state.depth_max = FP_0;
+		#endif
+
 		/* launch a new photon packet */
 		mcsim_launch(&sim);
 
@@ -3153,6 +3170,12 @@ __kernel void McKernel(
 			#if MC_TRACK_OPTICAL_PATHLENGTH
 				mcsim_optical_pathlength_add(
 					&sim, mc_layer_n(mcsim_current_layer(&sim))*step);
+			#endif
+
+			/* update the maximum depth reached by the photon packet */
+			#if MC_TRACK_DEPTH_MAX
+				if (mcsim_position_z(&sim) > mcsim_depth_max(&sim))
+					mcsim_depth_max_update(&sim, mcsim_position_z(&sim));
 			#endif
 
 			/* limit the movement to the layer boundaries - FPU precision related */
@@ -3244,6 +3267,11 @@ __kernel void McKernel(
 					#if MC_TRACK_OPTICAL_PATHLENGTH
 						/* initialize the trace */
 						sim.state.optical_pathlength = FP_0;
+					#endif
+
+					/* initialize the maximum depth */
+					#if MC_TRACK_DEPTH_MAX
+						sim.state.depth_max = FP_0;
 					#endif
 
 					/* launch a new photon packet */

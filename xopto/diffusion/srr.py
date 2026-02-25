@@ -21,7 +21,7 @@
 ################################# End license ##################################
 
 import numpy as np
-from scipy.integrate import simps
+from scipy.integrate import simpson
 
 def fresnel_s_polarized(theta:float, n1: float, n2: float) -> float:
     '''
@@ -127,8 +127,8 @@ def _fresnel_j(theta: float, nmedium: float, noutside: float) -> float:
 def r_eff(nmedium: float, noutside: float, steps: int = 10000) -> float:
     theta = np.linspace(0, np.pi/2.0, steps)
 
-    r_phi = simps(_fresnel_phi(theta, nmedium, noutside), dx=theta[1] - theta[0])
-    r_j = simps(_fresnel_j(theta, nmedium, noutside), dx=theta[1] - theta[0])
+    r_phi = simpson(_fresnel_phi(theta, nmedium, noutside), dx=theta[1] - theta[0])
+    r_j = simpson(_fresnel_j(theta, nmedium, noutside), dx=theta[1] - theta[0])
 
     return (r_phi + r_j)/(2.0 - r_phi + r_j)
 
@@ -159,13 +159,13 @@ class SRDA:
             1.0 - fresnel_unpolarized(theta, nmedium, noutside))*\
             np.cos(theta)*np.sin(theta)
 
-        self._back_hemi_coeff1 = simps(back_hemi_coeff1, dx=theta[1]-theta[0])
+        self._back_hemi_coeff1 = simpson(back_hemi_coeff1, dx=theta[1]-theta[0])
 
         back_hemi_coeff2 = 1.5*(
             1.0 - fresnel_unpolarized(theta, nmedium, noutside))*\
             np.cos(theta)**2*np.sin(theta)
 
-        self._back_hemi_coeff2 = simps(back_hemi_coeff2, dx=theta[1] - theta[0])
+        self._back_hemi_coeff2 = simpson(back_hemi_coeff2, dx=theta[1] - theta[0])
 
         self._R_eff = r_eff(nmedium, noutside, steps)
 

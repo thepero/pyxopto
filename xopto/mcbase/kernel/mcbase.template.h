@@ -196,6 +196,11 @@
 	#define MC_TRACK_OPTICAL_PATHLENGTH			FALSE
 #endif
 
+#if !defined(MC_TRACK_DEPTH_MAX) || defined(__DOXYGEN__)
+	/** @brief Define to TRUE to track packet depth maximum. */
+	#define MC_TRACK_DEPTH_MAX			FALSE
+#endif
+
 #if !defined(MC_USE_64_BIT_ACCUMULATORS)  || defined(__DOXYGEN__)
 	/** @brief Define to TRUE if 64-bit detector accumulators
 		are to be used. */

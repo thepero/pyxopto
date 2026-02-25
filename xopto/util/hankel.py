@@ -173,8 +173,8 @@ def discrete_simpson(frequency: np.ndarray, rpts: np.ndarray, fpts: np.ndarray,
     for index in range(np_freqs.size):
         f = fpts*j0(2*np.pi*np_freqs[index]*rpts)*rpts
         if out.ndim > 1:
-            out[:, index] = 2*np.pi*simps(f, r, dx=dr)
+            out[:, index] = 2*np.pi*simpson(f, r, dx=dr)
         else:
-            out[index] = 2*np.pi*simps(f, r, dx=dr)
+            out[index] = 2*np.pi*simpson(f, r, dx=dr)
 
     return out

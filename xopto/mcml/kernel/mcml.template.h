@@ -364,6 +364,9 @@ struct McSimState{
 	#if MC_TRACK_OPTICAL_PATHLENGTH || defined(__DOXYGEN__)
 	mc_fp_t optical_pathlength;		/**< Optical pathlength traveled by the photon packet. */
 	#endif
+	#if MC_TRACK_DEPTH_MAX || defined(__DOXYGEN__)
+	mc_fp_t depth_max;			/**< Maximum depth reached by the photon packet. */
+	#endif
 	#if MC_USE_TRACE || defined(__DOXYGEN__)
 	mc_uint_t trace_count;		/**< @brief Number of logged trace events since the packet launch. */
 	#endif
@@ -782,6 +785,20 @@ inline mc_fp_t mcsim_position_r2_ex(
  */
 #define mcsim_optical_pathlength_add(psim, opl) \
 	((psim)->state.optical_pathlength += (opl))
+
+/**
+ * @brief Evaluates to the maximum depth reached by the photon packet.
+ * @param[in] psim Pointer to a simulator instance.
+ */
+#define mcsim_depth_max(psim) ((psim)->state.depth_max)
+
+/**
+ * @brief Updates the current maximum depth with new one.
+ * @param[in] psim Pointer to a simulator instance.
+ * @param[in] depth Depth value to compare.
+ */
+#define mcsim_depth_max_update(psim, depth) \
+	((psim)->state.depth_max = (depth))
 
 /**
 * @brief Evaluates to the number of trace events since the photon packet launch.

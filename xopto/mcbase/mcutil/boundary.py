@@ -77,6 +77,77 @@ def reflectance(
 
     return (Rs + Rp)*0.5
 
+def reflectance_s(n1: float, n2: float, costheta: float=1.0) -> float:
+    '''
+    Computes reflectance of S-polarized (perpendicular) light at the specified boundary.
+
+    Parameters
+    ----------
+    n1: float
+        Refractive index of the material on the side of the incident beam.
+    n2: float
+        Refractive index of the material across the boundary.
+    costheta: float
+        Cosine of the angle of incidence -
+        perpendicular incidence by default (90 deg, cosine is 1).
+
+    Returns
+    -------
+    Rs: float
+        Reflectance of S-polarized (perpendicular) light.
+    '''
+    if costheta < 0.0:
+        raise ValueError('The incidence angle cosine must not be negative!')
+
+    n1, n2 = float(n1), float(n2)
+    sintheta = (1.0 - costheta**2)**0.5
+    sincritical = n2/n1
+
+    if n1 > n2 and sintheta >= sincritical:
+        Rs = 1.0
+    else:
+        a1 = n1*costheta
+        a2 = n2*(1.0 - (n1/n2*sintheta)**2)**0.5
+        Rs = np.abs((a1 - a2)/(a1 + a2))**2
+
+    return Rs
+
+
+def reflectance_p(n1: float, n2: float, costheta: float=1.0) -> float:
+    '''
+    Computes reflectance of P-polarized (parallel) light at the specified boundary.
+
+    Parameters
+    ----------
+    n1: float
+        Refractive index of the material on the side of the incident beam.
+    n2: float
+        Refractive index of the material across the boundary.
+    costheta: float
+        Cosine of the angle of incidence -
+        perpendicular incidence by default (90 deg, cosine is 1).
+
+    Returns
+    -------
+    Rp: float
+        Reflectance of P-polarized (parallel) light.
+    '''
+    if costheta < 0.0:
+        raise ValueError('The incidence angle cosine must not be negative!')
+
+    n1, n2 = float(n1), float(n2)
+    sintheta = (1.0 - costheta**2)**0.5
+    sincritical = n2/n1
+
+    if n1 > n2 and sintheta >= sincritical:
+        Rp = 1.0
+    else:
+        b1 = n1*(1.0 - (n1/n2*sintheta)**2)**0.5
+        b2 = n2*costheta
+        Rp = np.abs((b1 - b2)/(b1 + b2))**2
+
+    return Rp
+
 def refract(direction: np.ndarray, normal: np.ndarray, n1: float, n2: float) \
         -> np.ndarray:
     '''
