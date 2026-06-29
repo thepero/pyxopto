@@ -243,7 +243,8 @@ class MiePd(PfBase):
         pf: float or np.ndarray
             Scattering phase function at the specified deflection angle cosines.
         '''
-        costheta = np.array(costheta, copy=False, ndmin=1)
+        #costheta = np.array(costheta, copy=False, ndmin=1)
+        costheta = np.array(costheta, ndmin=1)
         if self._nd is None:
             return self._mie_pd_quad(costheta)/self._scs
         else:

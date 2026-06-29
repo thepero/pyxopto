@@ -27,10 +27,15 @@ from .radial import Radial
 from .radialpl import RadialPl
 from .radialoct import RadialOct
 from .radialdepthmax import RadialDepthMax
+from .radialfrequency import RadialFrequency
+from .xfrequency import XFrequency
+from .radialfrequencydepthmax import RadialFrequencyDepthMax
+from .xfrequencydepthmax import XFrequencyDepthMax
 from .cartesian import Cartesian
 from .cartesiansymmetric import CartesianSymmetricX
 from .cartesianpl import CartesianPl
 from .symmetric import SymmetricX
+from .symmetricdepthmax import SymmetricXDepthMax
 from .symmetricpl import SymmetricXPl
 
 from .probe.sixaroundone import SixAroundOne
@@ -42,4 +47,4 @@ from .probe.fiberlutarray import FiberLutArray
 from .probe.fiberarraypl import FiberArrayPl
 
 from xopto.mcml.mcutil.lut import CollectionLut
-from xopto.mcbase.mcutil.axis import Axis, RadialAxis, SymmetricAxis
+from xopto.mcbase.mcutil.axis import Axis, RadialAxis, SymmetricAxis, EdgeAxis

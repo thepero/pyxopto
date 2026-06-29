@@ -475,3 +475,116 @@ class SymmetricAxis:
     def __repr__(self):
         return self.__str__() + \
             ' # object at 0x{:>08X}.'.format(id(self))
+
+
+class EdgeAxis:
+    '''
+    A detector axis with linearly spaced
+    points used for accumulating at the exact points specified.
+    '''
+    def __init__(self, start: float or 'EdgeAxis' = 0.0, stop: float = 1.0, 
+                 n: int = 1):
+        '''
+        Creates a linearly spaced accumulator axis.
+        The parameters and data points of the axis can be accessed through
+        several properties.
+
+        Parameters
+        ----------
+        start: float or EdgeAxis
+            Start coordinate (left edge) of the accumulator. If an instance of
+            EdgeAxis, an identical copy of the instance is created.
+        stop: float
+            Stop coordinate (right edge) of the accumulator.
+        n: int
+            Number of points in the accumulator.
+
+        Note
+        ----
+        Detailed description of the class properties:
+
+        - start: float
+            Left point of the acumulator.
+
+        - stop: float
+            Right point of the accumulator.
+
+        - span: tuple of two float
+            Full range of the accumulator axis as a tuple (start, stop).
+
+        - step: float
+            Distance between the points of the axis.
+
+        - n: int
+            Number of points along the axis.
+
+        - centers: np.ndarray vector
+            Position of the points
+        '''
+        if isinstance(start, EdgeAxis):
+            axis = start
+            start = axis.start
+            stop = axis.stop
+            n = axis.n
+        else:
+            start = float(start)
+            stop = float(stop)
+            n = int(n)
+
+        self._n = n
+        self._centers = np.linspace(start, stop, n)
+        self._step = self._centers[1] - self._centers[0]
+        self._span = np.array((start, stop), dtype=np.float64)
+
+    def todict(self):
+        '''
+        Export object toa dict.
+        '''
+        return {'start':self._span[0], 'stop':self._span[1], 'n':self._n,
+                'type':'EdgeAxis'}
+
+    @classmethod
+    def fromdict(cls, data: dict) -> 'EdgeAxis':
+        '''
+        Create a new object from dict. The dict keys must match
+        the parameter names defined by the constructor.
+        '''
+        data_ = dict(data)
+        type_name = data_.pop('type')
+        if type_name != cls.__name__:
+            raise TypeError('Expected "{}" type bot got "{}"!'.format(
+                cls.__name__, type_name))
+        return cls(**data_)
+
+    def _get_step(self) -> float:
+        return self._step
+    step = property(_get_step, None, None, 'Accumulator step.')
+
+    def _get_n(self) -> int:
+        return self._n
+    n = property(_get_n, None, None, 'Number of accumulators along the axis.')
+
+    def _get_span(self):
+        return self._span
+    span = property(_get_span, None, None, 'Accumulator span as [min, max].')
+
+    def _get_start(self) -> float:
+        return self._span[0]
+    start = property(_get_start, None, None, 'Accumulator start coordinate.')
+
+    def _get_stop(self) -> float:
+        return self._span[1]
+    stop = property(_get_stop, None, None, 'Accumulator stop coordinate.')
+
+    def _get_centers(self) -> np.ndarray:
+        return self._centers
+    centers = property(_get_centers, None, None,
+                       'Center points of the accumulators.')
+
+    def __str__(self):
+        return 'EdgeAxis(start={}, stop={}, n={})'.format(
+            self._span[0], self._span[1], self._n)
+
+    def __repr__(self):
+        return self.__str__() + \
+            ' # object at 0x{:>08X}.'.format(id(self))

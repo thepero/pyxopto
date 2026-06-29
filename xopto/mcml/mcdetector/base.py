@@ -355,9 +355,14 @@ class Detectors(mcobject.McObject):
             use_detectors = True
         if use_detectors:
             options.append(('MC_USE_DETECTORS', True))
-        if type(self._scattering_threshold) == int and self._scattering_threshold > 0:
+        if isinstance(self._scattering_threshold, int) and self._scattering_threshold > 0:
             options.append(('MC_USE_SCATTERING_THRESHOLD', True))
-            options.append(('MC_SCATTERING_THRESHOLD', self._scattering_threshold))
+            options.append(('MC_SCATTERING_THRESHOLD_LOW', 0))
+            options.append(('MC_SCATTERING_THRESHOLD_HIGH', self._scattering_threshold))
+        elif isinstance(self._scattering_threshold, (tuple, list)) and len(self._scattering_threshold) == 2:
+            options.append(('MC_USE_SCATTERING_THRESHOLD', True))
+            options.append(('MC_SCATTERING_THRESHOLD_LOW', self._scattering_threshold[0]))
+            options.append(('MC_SCATTERING_THRESHOLD_HIGH', self._scattering_threshold[1]))
 
         return options
 
@@ -431,8 +436,13 @@ class Detectors(mcobject.McObject):
             Detector at the bottom sample surface or None
         specular: DetectorBase
             Detector of specular reflections or None.
-        scattering_threshold: int
-            The threshold for scattering events.
+        scattering_threshold: int or tuple or list
+            The interval of scattering orders to be recorded by the detectors. If an
+            integer is provided, it is used as the upper limit of the interval with the lower 
+            limit set to 0. If a tuple or list of two integers is provided, the first integer 
+            is used as the lower limit and the second integer is used as the upper limit of the interval.
+            The interval is inclusive of the lower limit and exclusive of the upper limit, i.e. [lower, upper).
+            If 0 or a negative integer is provided, no scattering order thresholding is applied.
         '''
         super().__init__()
         if isinstance(top, Detectors):
@@ -462,7 +472,6 @@ class Detectors(mcobject.McObject):
         self._bottom = bottom
         self._specular = specular
         self._scattering_threshold = scattering_threshold
-
 
     def update_data(self, mc: mcobject.McObject, detector: Detector or str,
                     data: Dict[np.dtype, List[np.ndarray]],

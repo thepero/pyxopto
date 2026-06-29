@@ -250,7 +250,7 @@ class PfBase:
             Value of the n-th Legendre moment.
         '''
         lp = np.polynomial.legendre.Legendre.basis(n)
-        return quad(lambda x: self(x)*lp(x), -1.0, 1.0, **kwargs)[0]
+        return quad(lambda x: float(np.asarray(self(x)).ravel()[0])*float(lp(x)), -1.0, 1.0, **kwargs)[0]
 
     def gs(self, last: int, **kwargs) -> np.ndarray:
         '''

@@ -682,6 +682,14 @@ __kernel void McKernel(
 
 					/* handle the sample surface detector */
 					if (mcsim_packet_escaped_sample(&sim)) {
+						#if MC_USE_SCATTERING_THRESHOLD
+							/* if the number of scattering events is below the
+							required interval and the photon is detected, set
+							its weight to zero */
+							if (scatter_count < MC_SCATTERING_THRESHOLD_LOW){
+								mcsim_set_weight(&sim, FP_0);
+							}
+						#endif
 						#if MC_USE_TOP_DETECTOR || MC_USE_BOTTOM_DETECTOR
 							if ( (mcsim_current_layer_index(&sim) <= 0) ){
 								#if MC_USE_TOP_DETECTOR
@@ -716,7 +724,7 @@ __kernel void McKernel(
 						#if MC_USE_SCATTERING_THRESHOLD
 							/* increment the scattering counter */
 							scatter_count++;
-							if (scatter_count > MC_SCATTERING_THRESHOLD){
+							if (scatter_count >= MC_SCATTERING_THRESHOLD_HIGH){
 								/* if the scattering threshold is reached
 								terminate the photon packet */
 								done = true;
@@ -752,6 +760,14 @@ __kernel void McKernel(
 
 					/* handle the sample surface detector */
 					if (mcsim_packet_escaped_sample(&sim)) {
+						#if MC_USE_SCATTERING_THRESHOLD
+							/* if the number of scattering events is below the
+							required interval and the photon is detected, set
+							its weight to zero */
+							if (scatter_count < MC_SCATTERING_THRESHOLD_LOW){
+								mcsim_set_weight(&sim, FP_0);
+							}
+						#endif
 						#if MC_USE_TOP_DETECTOR || MC_USE_BOTTOM_DETECTOR
 							if ( (mcsim_current_layer_index(&sim) <= 0) ){
 								#if MC_USE_TOP_DETECTOR
@@ -799,7 +815,7 @@ __kernel void McKernel(
 							#if MC_USE_SCATTERING_THRESHOLD
 								/* increment the scattering counter */
 								scatter_count++;
-								if (scatter_count > MC_SCATTERING_THRESHOLD){
+								if (scatter_count >= MC_SCATTERING_THRESHOLD_HIGH){
 									/* if the scattering threshold is reached
 									terminate the photon packet */
 									done = true;
@@ -823,7 +839,7 @@ __kernel void McKernel(
 						#if MC_USE_SCATTERING_THRESHOLD
 							/* increment the scattering counter */
 							scatter_count++;
-							if (scatter_count > MC_SCATTERING_THRESHOLD){
+							if (scatter_count >= MC_SCATTERING_THRESHOLD_HIGH){
 								/* if the scattering threshold is reached
 								terminate the photon packet */
 								done = true;
