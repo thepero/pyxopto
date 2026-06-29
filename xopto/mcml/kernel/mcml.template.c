@@ -269,7 +269,7 @@ inline mc_int_t mcsim_boundary(McSim *psim, mc_int_t nextLayerIndex){
 inline void mcsim_fluence_deposit_weight(
 		McSim *psim, mc_point3f_t const *pos, mc_fp_t deposit){
 	#if MC_FLUENCE_MODE_RATE
-		mcsim_fluence_deposit_at(psim, deposit, pos,
+		mcsim_fluence_deposit_at(psim, pos, deposit,
 			mc_layer_mua(mcsim_current_layer(psim), mcsim_direction(psim))
 		);
 	#else
