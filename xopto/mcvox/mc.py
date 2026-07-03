@@ -445,7 +445,8 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
             material_index = index
         elif self.voxels.contains(index):
             ind = self.voxels.index(index)
-            material_index = self.voxels[ind]['material_index']
+            # Voxels._data is ordered as (z, y, x), but index() returns (x, y, z)
+            material_index = self.voxels[(ind[2], ind[1], ind[0])]['material_index']
 
         return self.materials[material_index]
 
