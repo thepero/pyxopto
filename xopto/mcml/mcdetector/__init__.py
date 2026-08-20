@@ -32,6 +32,7 @@ from .xfrequency import XFrequency
 from .radialfrequencydepthmax import RadialFrequencyDepthMax
 from .xfrequencydepthmax import XFrequencyDepthMax
 from .cartesian import Cartesian
+from .cartesianlens import CartesianLens
 from .cartesiansymmetric import CartesianSymmetricX
 from .cartesianpl import CartesianPl
 from .symmetric import SymmetricX
