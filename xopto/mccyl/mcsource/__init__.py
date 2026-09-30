@@ -23,7 +23,10 @@
 from .base import Source
 from .point import IsotropicPoint
 from .line import Line
-from .uniformbeam import UniformBeam
+from .uniformroundbeam import UniformRoundBeam
 from .gaussianbeam import GaussianBeam
+
+# Deprecated names, will be removed in the next version.
+from .uniformbeam import UniformBeam
 
 from xopto.mcml.mcutil.lut import EmissionLut

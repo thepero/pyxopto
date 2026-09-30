@@ -103,7 +103,7 @@ CONFIG = {
         },
         'collimated-200um': { # radial detectors on top and bottom, NA=1
             # 'num_packets': 100e6, # use to overload the top level num_packets attribute
-            'type': 'UniformBeam',
+            'type': 'UniformRoundBeam',
             'args': [], 'kwargs': {'diameter': 200.0e-6},
             'dir': 'collimated-200um', # storage directory name
             'n_above': RI_AIR, 'n_bellow': RI_AIR # refractive index for the two outer layers

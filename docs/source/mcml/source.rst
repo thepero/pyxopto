@@ -38,8 +38,11 @@ used sources:
 * :py:class:`xopto.mcml.mcsource.line.Line` implements an infinitely narrow and
   collimated source.
 
-* :py:class:`xopto.mcml.mcsource.uniformbeam.UniformBeam` implements a 
+* :py:class:`xopto.mcml.mcsource.uniformroundbeam.UniformRoundBeam` implements a 
   uniform collimated source of elliptical cross section.
+
+* :py:class:`xopto.mcml.mcsource.uniformrectangularbeam.UniformRectangularBeam`
+  implements a uniform collimated source of rectangular cross section.
 
 * :py:class:`xopto.mcml.mcsource.gaussianbeam.GaussianBeam` implements
   a collimated Gaussian source of elliptical cross section.
@@ -58,15 +61,15 @@ used sources:
   the :py:mod:`xopto.mcml.mcsource.fiber` module but for a normal source
   incidence.
 
-* :py:mod:`xopto.mcml.mcsource.rectangular` module implements the following sources:
+* :py:mod:`xopto.mcml.mcsource.rectangularemitter` module implements the following sources:
 
-    * :py:mod:`xopto.mcml.mcsource.rectangular.UniformRectangular` implements
+    * :py:mod:`xopto.mcml.mcsource.rectangularemitter.UniformRectangularEmitter` implements
       a rectangular source that emits uniformly within the NA from each point
       of the source surface.
-    * :py:mod:`xopto.mcml.mcsource.rectangular.UniformRectangularLut` implements
+    * :py:mod:`xopto.mcml.mcsource.rectangularemitter.UniformRectangularEmitterLut` implements
       a rectangular source that follows a measured or nonparametric angular
       emission characteristics.
-    * :py:mod:`xopto.mcml.mcsource.rectangular.LambertianRectangular` implements
+    * :py:mod:`xopto.mcml.mcsource.rectangularemitter.LambertianRectangularEmitter` implements
       a rectangular source that emits like a Lambertian surface within the NA
       of the source.
 
@@ -83,7 +86,7 @@ through the :py:attr:`xopto.mcml.mc.Mc.rmax` property.
     The sources that do not implement a refractive index, inherit the value
     from the surrounding medium.
 
-The :py:class:`~xopto.mcml.mcsource.uniformbeam.UniformBeam`,
+The :py:class:`~xopto.mcml.mcsource.uniformroundbeam.UniformRoundBeam`,
 :py:class:`xopto.mcml.mcsource.gaussianbeam.GaussianBeam` and all the
 fiber sources
 
@@ -139,10 +142,10 @@ and the surface reflectance is subtracted from the initial packet weight.
 If a specular surface :ref:`detector <mcml-detector-label>` is used, the
 reflectance is deposited into that detector. 
 
-Uniform beam
----------------
+Uniform round beam
+------------------
 A uniform beam of elliptical cross section can be created with
-:py:class:`xopto.mcml.mcsource.uniformbeam.UniformBeam` source. The beam
+:py:class:`xopto.mcml.mcsource.uniformroundbeam.UniformRoundBeam` source. The beam
 diameter along the x and y axis is controlled by the :code:`diameter` parameter.
 In case the diameter is give as a scalar :code:`float` value, the cross
 section of the beam becomes circular. Note that the diameters are applied in
@@ -155,14 +158,34 @@ and a circular cross section diameter of 1 |nbsp| mm.
 
     from xopto.mcml import mc
 
-    src = mc.mcsource.UniformBeam(1.0e-3)
+    src = mc.mcsource.UniformRoundBeam(1.0e-3)
 
 The packets are always launched from the top surface of the sample. The
 source position and direction are used to determine the launch point at the
 sample surface. From there, the packet is first refracted into the sample
 and the surface reflectance is subtracted from the initial packet weight.
 If a specular surface :ref:`detector <mcml-detector-label>` is used, the
-reflectance is deposited into that detector. 
+reflectance is deposited into that detector.
+
+Uniform rectangular beam
+------------------------
+A uniform beam of rectangular cross section can be created with
+:py:class:`xopto.mcml.mcsource.uniformrectangularbeam.UniformRectangularBeam`
+source. The side lengths along the x and y axis are controlled by the
+:code:`side` parameter. In case the side is given as a scalar :code:`float`
+value, the cross section of the beam becomes square. As with the
+:py:class:`~xopto.mcml.mcsource.uniformroundbeam.UniformRoundBeam`, the beam
+can be repositioned and tilted through the :code:`position` and
+:code:`direction` parameters and the packets are always launched from the top
+surface of the sample. The following example creates a uniform beam with a
+perpendicular incidence and a 1 |nbsp| mm |nbsp| × |nbsp| 2 |nbsp| mm cross
+section.
+
+.. code-block:: python
+
+    from xopto.mcml import mc
+
+    src = mc.mcsource.UniformRectangularBeam((1.0e-3, 2.0e-3))
 
 Gaussian beam
 -------------
@@ -239,24 +262,27 @@ from the initial packet weight. If a specular surface
 :ref:`detector <mcml-detector-label>` is used, the reflectance is deposited
 into that detector. 
 
-Rectangular
------------
-Rectangular sources are similar to optical fiber sources, however with a 
-rectangular emission surface:
+Rectangular emitter
+-------------------
+Rectangular emitters are similar to optical fiber sources, however with a
+rectangular emission surface. Unlike the collimated
+:py:class:`~xopto.mcml.mcsource.uniformrectangularbeam.UniformRectangularBeam`,
+they emit within the NA of the source along the z axis and can be placed
+inside the sample:
 
-* :py:class:`xopto.mcml.mcsource.rectangular.UniformRectangular`
+* :py:class:`xopto.mcml.mcsource.rectangularemitter.UniformRectangularEmitter`
   emits uniformly within the NA of the source from each point of the source surface.
-* :py:class:`xopto.mcml.mcsource.rectangular.LambertianRectangular`
+* :py:class:`xopto.mcml.mcsource.rectangularemitter.LambertianRectangularEmitter`
   emits like a Lambertian surface within the NA of the source.
-* :py:class:`xopto.mcml.mcsource.rectangular.UniformRectangularLut`
+* :py:class:`xopto.mcml.mcsource.rectangularemitter.UniformRectangularEmitterLut`
   follows a nonparametric/measured angular emission characteristics.
 
 The following example creates a 
-:py:class:`~xopto.mcml.mcsource.rectangular.UniformRectangular` source of
+:py:class:`~xopto.mcml.mcsource.rectangularemitter.UniformRectangularEmitter` source of
 size :math:`(x, y) = (1, 2)` |nbsp| mm, NA 0.22 and refractive index 1.452.
 
 .. code-block:: python
 
     from xopto.mcml import mc
 
-    mc.UniformRectangular(1.0e-3, 2.0e-3, n=1.452, na=0.22)
+    mc.mcsource.UniformRectangularEmitter(1.0e-3, 2.0e-3, n=1.452, na=0.22)

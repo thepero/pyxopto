@@ -113,8 +113,8 @@ top_detector = mc.mcdetector.Radial(
 )
 detector_dir = 'radial'
 {%- endif %}
-{%- elif source.type.startswith('UniformBeam') -%}
-source = mc.mcsource.UniformBeam({{ render_args_kwargs(source.args, source.kwargs) }})
+{%- elif source.type.startswith(('UniformRoundBeam', 'UniformBeam')) -%}
+source = mc.mcsource.UniformRoundBeam({{ render_args_kwargs(source.args, source.kwargs) }})
 top_detector = mc.mcdetector.Radial(
     {{ render_detector_axis(detector.radial.top.raxis.args, detector.radial.top.raxis.kwargs) }},
     {{ render_args_kwargs(detector.radial.top.args, detector.radial.top.kwargs) }}

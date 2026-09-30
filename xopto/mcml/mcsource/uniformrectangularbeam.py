@@ -25,64 +25,53 @@ from typing import Tuple
 import numpy as np
 
 from xopto.mcml.mcsource.base import Source
-from xopto.mcml import mcobject
-from xopto.mcml import cltypes
-from xopto.mcml import mctypes
+from xopto.mcml import cltypes, mcobject, mctypes
 from xopto.mcml.mcutil import boundary, geometry
 
-class GaussianBeam(Source):
+
+class UniformRectangularBeam(Source):
     @staticmethod
     def cl_type(mc: mcobject.McObject) -> cltypes.Structure:
-        '''
-        Structure that is passed to the Monte carlo simulator kernel.
+        T = mc.types
+        class ClUniformRectangularBeam(cltypes.Structure):
+            '''
+            Structure that is passed to the Monte carlo simulator kernel.
+            
+            Parameters
+            ----------
+            mc: McObject
+                A Monte Carlo simulator instance.
 
-        Parameters
-        ----------
-        mc: McObject
-            A Monte Carlo simulator instance.
+            Returns
+            -------
+            struct: cltypes.Structure
+                A structure type that represents the uniform rectangular beam in
+                the Monte Carlo kernel.
 
-        Returns
-        -------
-        struct: cltypes.Structure
-            A structure type that represents the Gaussian beam in
-            the Monte Carlo kernel.
-
-            The returned structure type implements the following fields:
-
-            - transformation: mc_matrix3f_t
+            Fields
+            ------
+            transformation: mc_matrix3f_t
                 Transformation from the beam coordinate system to the Monte
                 Carlo coordinate system.
-            - position: (float, float, float)
-                Center of the collimated beam as an array-like object of size 3
-                (x, y, z). The beam will be always propagated to the top
-                sample surface.
-            - direction: (float, float, float)
-                Direction of the collimated beam as an array-like object of size 3
-                (px, py, pz). The vector should be normalized to unit length and
-                have a positive z coordinate (hitting the top sample surface).
-            - sigma: mc_point2f_t
-                Width of the Gaussian beam in terms of standard deviation along
-                the x and y axis,
-            - clip: mc_fp_t
-                Clips the gaussian beam at the specified number of sigmas.
-            - reflectance: mc_fp_t
-                Precalculated reflectance at the source-sample boundary (c_float).
-            - layer_index: mc_int_t
-                Index of the sample layer into which this source is launching
-                photon packets.
-        '''
-        T = mc.types
-        class ClGaussianBeam(cltypes.Structure):
-            _pack_ = 1
+            position: mc_point3f_t
+                Source position (beam axis).
+            direction: mc_point3f_t
+                Source direction (beam axis) in the sample medium (after
+                refraction).
+            side: mc_point2f_t
+                Side lengths along the x and y axis. Use equal values for a
+                square beam.
+            reflectance: mc_fp_t
+                Precalculated reflectance at the source -> sample boundary.
+            '''
             _fields_ = [
                 ('transformation', T.mc_matrix3f_t),
                 ('position', T.mc_point3f_t),
                 ('direction', T.mc_point3f_t),
-                ('sigma', T.mc_point2f_t),
-                ('clip', T.mc_fp_t),
+                ('side', T.mc_point2f_t),
                 ('reflectance', T.mc_fp_t),
             ]
-        return ClGaussianBeam
+        return ClUniformRectangularBeam
 
     @staticmethod
     def cl_declaration(mc: mcobject.McObject) -> str:
@@ -94,8 +83,7 @@ class GaussianBeam(Source):
             '	mc_matrix3f_t transformation;',
             '	mc_point3f_t position;',
             '	mc_point3f_t direction;',
-            '	mc_point2f_t sigma;',
-            '	mc_fp_t clip;',
+            '	mc_point2f_t side;',
             '	mc_fp_t reflectance;',
             '};'
         ))
@@ -105,29 +93,25 @@ class GaussianBeam(Source):
         '''
         Implementation of the source in the Monte Carlo simulator.
         '''
-        return '\n'.join((
+        return  '\n'.join((
             'void dbg_print_source(__mc_source_mem const McSource *src){',
-            '	dbg_print("GaussianBeam source:");',
-            '	dbg_print_matrix3f(INDENT "transformation:", &src->transformation);',
-            '	dbg_print_point3f(INDENT "position:", &src->position);',
-            '	dbg_print_point3f(INDENT "direction:", &src->direction);',
-            '	dbg_print_point2f(INDENT "sigma:", &src->sigma);',
-            '	dbg_print_float(INDENT "clip:", src->clip);',
-            '	dbg_print_float(INDENT "reflectance:", src->reflectance);',
+            '	printf("UniformRectangularBeam source:\\n");',
+            '	printf(INDENT "position: (%.3f, %.3f, %.3f) mm\\n",',
+            '		src->position.x*1e3f, src->position.y*1e3f, src->position.z*1e3f);',
+            '	printf(INDENT "direction: (%.3f, %.3f, %.3f)\\n",',
+            '		src->direction.x, src->direction.y, src->direction.z);',
+            '	printf(INDENT "side: (%.3f, %.3f) mm\\n", src->side.x*1e3f, src->side.y*1e3f);',
+            '	printf(INDENT "reflectance: %.3f\\n", src->reflectance);',
             '};',
             '',
             'inline void mcsim_launch(McSim *mcsim){',
-            '	__mc_source_mem const struct McSource *source = mcsim_source(mcsim);',
-            '	mc_fp_t cos_fi, sin_fi, r;',
+            '   __mc_source_mem const struct McSource *source = mcsim_source(mcsim);',
+            '	mc_fp_t rand_x = (mcsim_random(mcsim) - FP_0p5) * FP_2;',  # Random value in [-1, 1]
+            '	mc_fp_t rand_y = (mcsim_random(mcsim) - FP_0p5) * FP_2;',  # Random value in [-1, 1]
             '	mc_point3f_t pt_src, pt_mc;',
             '',
-            '	/* r = sigma*np.sqrt(-FP_2*np.log(FP_1 - uniform_random)) */',
-            '	r = mc_sqrt(-FP_2*mc_log(FP_1 - mcsim_random(mcsim)));',
-            '	r = mc_fmin(r, source->clip);',
-            '',
-            '	mc_sincos(FP_2PI*mcsim_random(mcsim), &sin_fi, &cos_fi);',
-            '	pt_src.x = r*cos_fi*source->sigma.x;',
-            '	pt_src.y = r*sin_fi*source->sigma.y;',
+            '	pt_src.x = rand_x * source->side.x * FP_0p5;',  # multiply by 0.5 to get half side
+            '	pt_src.y = rand_y * source->side.y * FP_0p5;',  # multiply by 0.5 to get half side
             '	pt_src.z = FP_0;',
             '',
             '	mc_matrix3f_t transformation = source->transformation;',
@@ -145,8 +129,8 @@ class GaussianBeam(Source):
             '		FP_0',
             '	);',
             '	mcsim_set_direction(mcsim, &source->direction);',
-            '	mcsim_set_current_layer_index(mcsim, 1);',
             '	mcsim_set_weight(mcsim, FP_1 - source->reflectance);',
+            '	mcsim_set_current_layer_index(mcsim, 1);',
             '',
             '	#if MC_USE_SPECULAR_DETECTOR',
             '		mc_point3f_t dir_in = {mcsim_direction_x(mcsim), ',
@@ -159,61 +143,25 @@ class GaussianBeam(Source):
             '			mcsim, mcsim_position(mcsim), &dir, source->reflectance);',
             '	#endif',
             '',
-            '	dbg_print_status(mcsim, "Launch GaussianBeam");',
+            '	dbg_print_status(mcsim, "Launch UniformRectangularBeam");',
             '};',
         ))
 
-    @staticmethod
-    def fwhm2sigma(fwhm: float) -> float:
-        '''
-        Converts sigma to Full width at half maximum (FWHM).
-
-        Parameters
-        ----------
-        sigma: float
-            Standard deviation of the Gaussian.
-
-        Returns
-        -------
-        fwhm: float
-            FWHM parameter of the Gaussian
-        '''
-        return fwhm/(8*np.log(2))**0.5
-
-    @staticmethod
-    def sigma2fwhm(sigma: float) -> float:
-        '''
-        Converts Full width at half maximum (FWHM) to sigma (standard deviation).
-
-        Parameters
-        ----------
-        fwhm: float
-            Full width at half maximum (FWHM).
-
-        Returns
-        -------
-        sigma: float
-            Standard deviation of the Gaussian.
-        '''
-        return sigma*(8*np.log(2))**0.5
-    
-    def __init__(self, sigma: float or Tuple[float, float], clip: float = 5.0,
+    def __init__(self, side: float or Tuple[float, float],
                  position: Tuple[float, float, float] = (0.0, 0.0, 0.0),
                  direction: Tuple[float, float, float] = (0.0, 0.0, 1.0)):
         '''
-        Collimated Gaussian beam photon packet source.
+        Uniform intensity collimated rectangular beam photon packet source.
 
         Parameters
         ----------
-        sigma: float or (float, float)
-            Collimated beam width in terms of standard deviation given along
-            the x and y axis. If a single value is provided, the same width
-            is used along the x and y axis.
-        clip: float
-            Clip the beam at clip*sigma distance from the beam axis.
+        side: float or (float, float)
+            Collimated beam side length. Or side lengths of the rectangle
+            along the x and y axis
         position: (float, float, float)
             Center of the collimated beam as an array-like object of size 3
-            (x, y, z).
+            (x, y, z). The beam will be always propagated to the top
+            sample surface.
         direction: (float, float, float)
             Direction of the collimated beam as an array-like object of size 3
             (px, py, pz). The vector should be normalized to unit length and
@@ -231,38 +179,15 @@ class GaussianBeam(Source):
         sample boundary from the initial weight of the packet.
         '''
         Source.__init__(self)
-        self._clip = self._sigma = None
+
         self._position = np.zeros((3,))
         self._direction = np.zeros((3,))
         self._direction[2] = 1.0
-        self._sigma = np.zeros((2,))
+        self._side = np.zeros((2,))
 
-        self._set_sigma(sigma)
-        self._set_clip(clip)
+        self._set_side(side)
         self._set_position(position)
         self._set_direction(direction)
-
-    def update(self, other: 'GaussianBeam' or dict):
-        '''
-        Update this source configuration from the other source. The
-        other source must be of the same type as this source or a dict with
-        appropriate fields.
-
-        Parameters
-        ----------
-        other: GaussianBeam or dict
-            This source is updated with the configuration of the other source.
-        '''
-        if isinstance(other, GaussianBeam):
-            self.sigma = other.sigma
-            self.clip = other.clip
-            self.position = other.position
-            self.direction = other.direction
-        elif isinstance(other, dict):
-            self.sigma = other.get('sigma', self.sigma)
-            self.clip = other.get('clip', self.clip)
-            self.position = other.get('position', self.position)
-            self.direction = other.get('direction', self.direction)
 
     def _get_position(self) -> Tuple[float, float, float]:
         return self._position
@@ -286,43 +211,54 @@ class GaussianBeam(Source):
     direction = property(_get_direction, _set_direction, None,
                         'Source direction.')
 
-    def _get_sigma(self) -> Tuple[float, float]:
-        return self._sigma
-    def _set_sigma(self, sigma: float or Tuple[float, float]):
-        self._sigma[:] = sigma
-        if np.any(self._sigma < 0.0):
-            raise ValueError('Beam diameter/sigma must not be negative!')
-    sigma = property(_get_sigma, _set_sigma, None,
-                     'Beam standard deviation (m).')
+    def _get_side(self) -> float:
+        return self._side
+    def _set_side(self, side: float or Tuple[float, float]):
+        self._side[:] = side
+        self._side = np.maximum(0.0, self._side)
+        if np.any(self._side < 0.0):
+            raise ValueError('Beam side length must not be negative!')
+    side = property(_get_side, _set_side, None,
+                        'Beam side length along the x and y axis (m).')
 
-    def _get_clip(self) -> float:
-        return self._clip
-    def _set_clip(self, clip: Tuple[float, float]):
-        self._clip = float(clip)
-        if self._clip < 0.0:
-            raise ValueError('Clip diameter/sigma must be greater than zero!.')
-    clip = property(_get_clip, _set_clip, None,
-                    'Number of standard deviations at which '
-                    'the beam is clipped.')
+    def update(self, other: dict or 'UniformRectangularBeam'):
+        '''
+        Update this source configuration from the other source. The
+        other source must be of the same type as this source or a dict with
+        appropriate fields.
+
+        Parameters
+        ----------
+        other: UniformRectangularBeam or dict
+            This source is updated with the configuration of the other source.
+        '''
+        if isinstance(other, UniformRectangularBeam):
+            self.side = other.side
+            self.position = other.position
+            self.direction = other.direction
+        elif isinstance(other, dict):
+            self.side = other.get('side', self.side)
+            self.position = other.get('position', self.position)
+            self.direction = other.get('direction', self.direction)
 
     def cl_pack(self, mc: mcobject.McObject, target: cltypes.Structure = None) \
-            -> cltypes.Structure:
+            -> Tuple[cltypes.Structure, None, None]:
         '''
-        Fills the structure (target) with the data required by the
-        Monte Carlo simulator. See the :py:meth:`GaussianBeam.cl_type`
-        for a detailed list of fields.
+        Fills a structure (target) with the data required by the
+        Monte Carlo simulator kernel.
+        See the :py:meth:`UniformRectangularBeam.cl_type` for a detailed list of fields.
 
         Parameters
         ----------
         mc: mcobject.McObject
             Monte Carlo simulator instance.
-        target: pyopyo.mcml.mcsource.GaussianBeam.cl_type
-            Structure that is filled with the source data.
+        target: pyopyo.mcml.mcsource.UniformRectangularBeam.cl_type
+            Ctypes structure that is filled with the source data.
 
         Returns
         -------
-        target: pyopyo.mcml.mcsource.GaussianBeam.cl_type
-            Filled structure received as an input argument or a new
+        target: pyopyo.mcml.mcsource.UniformRectangularBeam.cl_type
+            Filled ctypes structure received as an input argument or a new
             instance if the input argument target is None.
         topgeometry: None
             This source does not use advanced geometry at the top sample surface.
@@ -351,9 +287,8 @@ class GaussianBeam(Source):
         target.position.fromarray(position)
         target.direction.fromarray(direction)
 
-        target.sigma.fromarray(self._sigma)
-
-        target.clip = self._clip
+        target.side.x = self._side[0]
+        target.side.y = self._side[1]
 
         target.reflectance = reflectance
 
@@ -363,13 +298,12 @@ class GaussianBeam(Source):
         '''
         Export object to a dict.
         '''
-        return {'sigma': self._sigma.tolist(), 
-                'clip': self._clip,
+        return {'side': self._side.tolist(), 
                 'position': self._position.tolist(),
                 'direction': self._direction.tolist(),
                 'type': self.__class__.__name__}
 
     def __str__(self):
-        return 'GaussianBeam(sigma=({}, {}), clip={}, '\
-               'position=({}, {}, {}), direction=({}, {}, {}))'.format(
-                   *self._sigma, self._clip, *self._position, *self._direction)
+        return 'UniformRectangularBeam(side=({}, {}), position=({}, {}, {}). ' \
+               'direction=({}, {}, {}))'.format(
+            *self._side, *self._position, *self._direction)

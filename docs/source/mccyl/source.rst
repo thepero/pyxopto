@@ -38,7 +38,7 @@ used sources:
 * :py:class:`xopto.mccyl.mcsource.line.Line` implements an infinitely narrow and
   collimated source.
 
-* :py:class:`xopto.mccyl.mcsource.uniformbeam.UniformBeam` implements a 
+* :py:class:`xopto.mccyl.mcsource.uniformroundbeam.UniformRoundBeam` implements a 
   uniform collimated source of elliptical cross section.
 
 * :py:class:`xopto.mccyl.mcsource.gaussianbeam.GaussianBeam` implements
@@ -60,7 +60,7 @@ enter the outer layer of the sample on the negative :math:`x` axis at
     The sources that do not implement a refractive index, inherit the value from
     the surrounding medium.
 
-The :py:class:`~xopto.mccyl.mcsource.uniformbeam.UniformBeam`,
+The :py:class:`~xopto.mccyl.mcsource.uniformroundbeam.UniformRoundBeam`,
 :py:class:`xopto.mccyl.mcsource.gaussianbeam.GaussianBeam` and all the
 fiber sources
 
@@ -113,10 +113,10 @@ and the surface reflectance is subtracted from the initial packet weight.
 If a specular surface :ref:`detector <mccyl-detector-label>` is used, the
 reflectance is deposited into that detector. 
 
-Uniform beam
----------------
+Uniform round beam
+------------------
 A uniform beam of elliptical cross section can be created with
-:py:class:`xopto.mccyl.mcsource.uniformbeam.UniformBeam` source. The beam
+:py:class:`xopto.mccyl.mcsource.uniformroundbeam.UniformRoundBeam` source. The beam
 diameter along the y and z axis is controlled by the :code:`diameter` parameter.
 In case the diameter is give as a scalar :code:`float` value, the cross
 section of the beam becomes circular. Note that the diameters are applied in
@@ -129,7 +129,7 @@ The following example creates a uniform beam with incidence along the
 
     from xopto.mccyl import mc
 
-    src = mc.mcsource.UniformBeam(1.0e-3)
+    src = mc.mcsource.UniformRoundBeam(1.0e-3)
 
 The packets are always launched from the top surface of the sample. The
 source position and direction are used to determine the launch point at the

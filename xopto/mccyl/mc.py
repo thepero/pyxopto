@@ -130,7 +130,7 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
             One of the available photon packet source object:
 
             - Line - Infinity thin beam.
-            - UniformBeam - Collimated uniform beam.
+            - UniformRoundBeam - Collimated uniform beam with a circular crosssection.
             - GaussianBeam - Collimated beam with a Gaussian crosssection.
             - IsotropicPoint - Isotropic point source.
 
@@ -1669,7 +1669,7 @@ if __name__ == '__main__':
     ])
     source = mcsource.Line()
     #source = mcsource.GaussianBeam(50e-6)
-    #source = mcsource.UniformBeam(1e-6)
+    #source = mcsource.UniformRoundBeam(1e-6)
     #source = mcsource.IsotropicPoint(0.0)
 
     detectors = mcdetector.Detectors(

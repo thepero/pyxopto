@@ -68,7 +68,7 @@ cl_device = clinfo.gpus()[0]
 pf = mc.mcpf.Hg(0.7)
 
 #source = mc.mcsource.Line()
-source = mc.mcsource.UniformBeam(
+source = mc.mcsource.UniformRoundBeam(
     50e-6,
     position=(-0.5e-3, 0.0, 0.5e-3),
     direction=(1.0, 0.0, 0.0)

@@ -23,11 +23,18 @@
 from .base import Source
 from .point import IsotropicPoint
 from .line import Line
-from .uniformbeam import UniformBeam
-from .uniformsquarebeam import UniformSquareBeam
+from .uniformroundbeam import UniformRoundBeam
+from .uniformrectangularbeam import UniformRectangularBeam
 from .gaussianbeam import GaussianBeam
 from .fiber import UniformFiber, LambertianFiber, UniformFiberLut
 from .fiberni import UniformFiberNI, LambertianFiberNI, UniformFiberLutNI
+from .rectangularemitter import UniformRectangularEmitter, \
+                                LambertianRectangularEmitter, \
+                                UniformRectangularEmitterLut
+
+# Deprecated names, will be removed in the next version.
+from .uniformbeam import UniformBeam
+from .uniformsquarebeam import UniformSquareBeam
 from .rectangular import UniformRectangular, LambertianRectangular, \
                          UniformRectangularLut
 

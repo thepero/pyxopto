@@ -381,7 +381,7 @@ surrounding medium.
       -
       -
       - :py:class:`~xopto.mcml.mcdetector.radial.Radial` (:py:class:`~xopto.mcbase.mcutil.axis.Axis` (start=0, stop=0.005, n=500))
-    * - :py:class:`~xopto.mcml.mcsource.uniformbeam.UniformBeam`
+    * - :py:class:`~xopto.mcml.mcsource.uniformroundbeam.UniformRoundBeam`
       - :math:`diameter`
       - 200 |nbsp| μm
       - :py:class:`~xopto.mcml.mcdetector.radial.Radial` (:py:class:`~xopto.mcbase.mcutil.axis.Axis` (start=0, stop=0.005, n=500))
@@ -748,7 +748,7 @@ The values of placeholders <> are as follows:
       :py:class:`~xopto.mcml.mcsource.line.Line`.
 
     * :sh:`collimated-200um` for a
-      :py:class:`~xopto.mcml.mcsource.uniformbeam.UniformBeam` with
+      :py:class:`~xopto.mcml.mcsource.uniformroundbeam.UniformRoundBeam` with
       a 200 |nbsp| µm beam diameter.
 
     * :sh:`gaussian-fwhm-100um` for a

@@ -129,7 +129,8 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
             One of the available photon packet source object:
 
             - Line - Infinity thin beam.
-            - UniformBeam - Collimated uniform beam.
+            - UniformRoundBeam - Collimated uniform beam with a circular crosssection.
+            - UniformRectangularBeam - Collimated uniform beam with a rectangular crosssection.
             - GaussianBeam - Collimated beam with a Gaussian crosssection.
             - IsotropicPoint - Isotropic point source.
             - UniformFiber - Uniform intensity fiber source with a given numerical aperture.
