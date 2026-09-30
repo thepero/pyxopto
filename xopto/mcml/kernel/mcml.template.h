@@ -41,6 +41,19 @@
 	#define MC_USE_BOTTOM_SURFACE_LAYOUT		FALSE
 #endif
 
+#if !defined(MC_USE_FLUORESCENCE) || defined(__DOXYGEN__)
+	/** @brief Turn on/off the fluorescence cascade (spectral layers). */
+	#define MC_USE_FLUORESCENCE					FALSE
+#endif
+
+#if !defined(MC_FLUORESCENCE_QY_IN_KERNEL) || defined(__DOXYGEN__)
+	/** @brief Apply the fluorescence quantum yield in the kernel. If FALSE,
+	 *         all absorbed photon packets are re-emitted (quantum yield 1) and
+	 *         the quantum yield is applied to the generation-resolved detector
+	 *         data after the simulation. */
+	#define MC_FLUORESCENCE_QY_IN_KERNEL		FALSE
+#endif
+
 /**
  * @} // end @addtogroup mc_simulator_options
  */
@@ -69,6 +82,16 @@
 #define __mc_surface_mem		__constant
 /** @brief Keep the configuration data of the advanced layout at bottom surface of the sample in constant memory. */
 #define __mc_trace_mem			__constant
+/** @brief Keep the fluorescence configuration data in constant memory. */
+#define __mc_fluorescence_mem	__constant
+#if MC_USE_FLUORESCENCE
+	/** @brief The spectral layer table (layers x wavelengths) does not fit
+	 *         into the constant memory. */
+	#define __mc_layer_mem		__global
+#else
+	/** @brief Keep the sample layers in constant memory. */
+	#define __mc_layer_mem		__constant
+#endif
 
 /**
  * @} // end @addtogroup mc_memory_types
@@ -91,6 +114,14 @@ typedef struct McSim McSim;
  * @} // end @addtogroup mc_simulator_state
  */
 /*######################### End forward declarations #########################*/
+
+
+/*################### Start fluorescence type declarations ###################*/
+/* Fluorescence configuration and spectral detector types go here - DO NOT EDIT! */
+/* START_FLUORESCENCE_DECLARATION_BLOCK */
+{{ fluorescence.declaration or 'typedef mc_int_t McFluorescence;' }}
+/* END_FLUORESCENCE_DECLARATION_BLOCK */
+/*#################### End fluorescence type declarations ####################*/
 
 
 /*############## Start scattering phase function declarations ################*/
@@ -373,6 +404,11 @@ struct McSimState{
 	#if MC_USE_FLUENCE && MC_USE_FLUENCE_CACHE
 	mc_accucache_t fluence_cache;	/**< @brief Fluence cache object. */
 	#endif
+	#if MC_USE_FLUORESCENCE || defined(__DOXYGEN__)
+	mc_int_t wl_index;			/**< @brief Index of the current photon packet wavelength. */
+	mc_int_t generation;		/**< @brief Number of fluorescence emission events of the photon packet. */
+	__mc_layer_mem McLayer const *wl_layers;	/**< @brief Layers at the current wavelength. */
+	#endif
 };
  /** @} */
  /** @brief Data type representing the Monte Carlo simulator core state. */
@@ -389,7 +425,7 @@ struct McSim{
 	McSimState state;		/**< Simulation state. */
 
 	mc_int_t num_layers;	/**< Number of layers including the two outermost layers. */
-	__constant McLayer const *layers;	/**< Layer objects. */
+	__mc_layer_mem McLayer const *layers;	/**< Layer objects (for all wavelengths if fluorescence is used). */
 
 	__mc_source_mem McSource const *source; 	/**< Photon packet source object. */
 
@@ -411,6 +447,10 @@ struct McSim{
 
 	#if MC_USE_DETECTORS || defined(__DOXYGEN__)
 		__mc_detector_mem const McDetectors *detectors;	/**< @brief Reflectance/transmittance detector configuration data. */
+	#endif
+
+	#if MC_USE_FLUORESCENCE || defined(__DOXYGEN__)
+		__mc_fluorescence_mem const McFluorescence *fluorescence;	/**< @brief Fluorescence configuration data. */
 	#endif
 
 	__global mc_int_t *integer_buffer; 		/**< @brief Common integer buffer. */
@@ -638,6 +678,50 @@ inline mc_fp_t mcsim_position_r2_ex(
  */
 #define mcsim_adjust_weight(psim, delta) ((psim)->state.weight -= (delta))
 
+#if MC_USE_FLUORESCENCE || defined(__DOXYGEN__)
+	/**
+	* @brief Evaluates to the array of layers at the current photon packet
+	*        wavelength.
+	* @param[in] psim Pointer to a simulator instance.
+	*/
+	#define mcsim_layers(psim) ((psim)->state.wl_layers)
+
+	/**
+	* @brief Evaluates to the index of the current photon packet wavelength.
+	* @param[in] psim Pointer to a simulator instance.
+	*/
+	#define mcsim_wavelength_index(psim) ((psim)->state.wl_index)
+
+	/**
+	* @brief Sets the index of the current photon packet wavelength and
+	*        selects the layers at that wavelength.
+	* @param[in] psim Pointer to a simulator instance.
+	* @param[in] index Wavelength index. NOT checked for valid range!
+	*/
+	#define mcsim_set_wavelength_index(psim, index) \
+		((psim)->state.wl_index = (index), \
+		 (psim)->state.wl_layers = (psim)->layers + (index)*(psim)->num_layers)
+
+	/**
+	* @brief Evaluates to the number of fluorescence emission events
+	*        (generation) of the photon packet.
+	* @param[in] psim Pointer to a simulator instance.
+	*/
+	#define mcsim_generation(psim) ((psim)->state.generation)
+
+	/**
+	* @brief Evaluates to a pointer to the fluorescence configuration.
+	* @param[in] psim Pointer to a simulator instance.
+	*/
+	#define mcsim_fluorescence(psim) ((psim)->fluorescence)
+#else
+	/**
+	* @brief Evaluates to the array of sample layers.
+	* @param[in] psim Pointer to a simulator instance.
+	*/
+	#define mcsim_layers(psim) ((psim)->layers)
+#endif
+
 /**
 * @brief Evaluates to the current layer index.
 * @param[in] psim Pointer to a simulator instance.
@@ -665,7 +749,7 @@ inline mc_fp_t mcsim_position_r2_ex(
 * @param[in] psim Pointer to a simulator instance.
 */
 #define mcsim_next_layer(psim) \
-	(&(psim)->layers[(psim)->state.layer_index + mc_fsign((psim)->state.direction.z)])
+	(&mcsim_layers(psim)[(psim)->state.layer_index + mc_fsign((psim)->state.direction.z)])
 
 /**
 * @brief Evaluates to the total number of layers including the two outer layers.
@@ -697,7 +781,7 @@ inline mc_fp_t mcsim_position_r2_ex(
 * @brief Evaluates to a pointer to the current layer.
 * @param[in] psim Pointer to a simulator instance.
 */
-#define mcsim_current_layer(psim) (&(psim)->layers[(psim)->state.layer_index])
+#define mcsim_current_layer(psim) (&mcsim_layers(psim)[(psim)->state.layer_index])
 
 /**
 * @brief Evaluates to a pointer to the current layer scattering phase function.
@@ -716,7 +800,7 @@ inline mc_fp_t mcsim_position_r2_ex(
 * @param[in] index The requested layer index.
 * @note The specified layer index is NOT checked for valid range.
 */
-#define mcsim_layer(psim, index) (&(psim)->layers[index])
+#define mcsim_layer(psim, index) (&mcsim_layers(psim)[index])
 
 /**
 * @brief Evaluates to the index of the top layer.
@@ -728,7 +812,7 @@ inline mc_fp_t mcsim_position_r2_ex(
 * @brief Evaluates to a pointer to the top layer.
 * @param[in] psim Pointer to a simulator instance.
 */
-#define mcsim_top_layer(psim) (&(psim)->layers[0])
+#define mcsim_top_layer(psim) (&mcsim_layers(psim)[0])
 
 /**
 * @brief Evaluates to the index of the top layer of the sample.
@@ -740,13 +824,13 @@ inline mc_fp_t mcsim_position_r2_ex(
 * @brief Evaluates to a pointer to the top layer of the sample.
 * @param[in] psim Pointer to a simulator instance.
 */
-#define mcsim_top_sample_layer(psim) (&(psim)->layers[1])
+#define mcsim_top_sample_layer(psim) (&mcsim_layers(psim)[1])
 
 /**
 * @brief Evaluates to a pointer to the bottom layer.
 * @param[in] psim Pointer to a simulator instance.
 */
-#define mcsim_bottom_layer(psim) (&(psim)->layers[mcsim_layer_count(psim) - 1])
+#define mcsim_bottom_layer(psim) (&mcsim_layers(psim)[mcsim_layer_count(psim) - 1])
 
 /**
 * @brief Evaluates to the index of the bottom layer.
@@ -758,7 +842,7 @@ inline mc_fp_t mcsim_position_r2_ex(
 * @brief Evaluates to a pointer to the bottom layer of the sample.
 * @param[in] psim Pointer to a simulator instance.
 */
-#define mcsim_bottom_sample_layer(psim) (&(psim)->layers[mcsim_layer_count(psim) - 2])
+#define mcsim_bottom_sample_layer(psim) (&mcsim_layers(psim)[mcsim_layer_count(psim) - 2])
 
 /**
 * @brief Evaluates to the index of the bottom sample layer.

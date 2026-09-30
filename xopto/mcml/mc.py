@@ -42,6 +42,7 @@ from xopto.mcml import mcdetector
 from xopto.mcml import mctrace
 from xopto.mcml import mcsv
 from xopto.mcml import mcfluence
+from xopto.mcml import mcfluorescence
 from xopto.mcml import mcsource
 from xopto.mcml import mcpf
 from xopto.mcml import mcprogress
@@ -92,6 +93,7 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
                  trace: mctrace.Trace = None,
                  fluence: mcfluence.FLUENCE_TYPE = None,
                  surface: mcsurface.SurfaceLayouts = None,
+                 fluorescence: mcfluorescence.Fluorescence = None,
                  types: mctypes.McDataTypesBase = mctypes.McDataTypesSingle,
                  options: List[mcoptions.McOption] = None,
                  rnginit: np.uint64 = None,
@@ -171,6 +173,23 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
             - MC_USE_TOP_SURFACE_LAYOUT
             - MC_USE_BOTTOM_SURFACE_LAYOUT
             - MC_USE_SURFACE_LAYOUTS
+
+        fluorescence: mcfluorescence.Fluorescence
+            Enables the fluorescence cascade. The optical properties of the
+            layers (use :py:class:`~xopto.mcml.mclayer.layer.SpectralLayer`)
+            become wavelength dependent, photon packets absorbed by a
+            fluorophore are re-emitted at a new wavelength and the
+            detectors become spectrally and generation resolved
+            (see :py:class:`~xopto.mcml.mcfluorescence.SpectralDetection`).
+            Requires the albedo rejection Monte Carlo method, which is set
+            automatically.
+
+            The Fluorescence object will set the following simulator options:
+
+            - MC_USE_FLUORESCENCE
+            - MC_FLUORESCENCE_QY_IN_KERNEL
+            - MC_USE_FP_LUT
+            - MC_METHOD (albedo rejection)
 
         types: mctypes.McDataTypes
             A class that defines all the simulator data types. Use one
@@ -339,13 +358,14 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
         self._mc_obj_types = {'layer': None, 'pf': None,
                               'source': None, 'detectors': None,
                               'fluence': None, 'trace': None,
-                              'surface_layouts': None}
+                              'surface_layouts': None, 'fluorescence': None}
 
         # Prepare the sample layer stack.
         self._layers = mclayer.Layers(layers)
         self._layers.check()
         # Save the types of layer and scattering phase function.
-        self._mc_obj_types['layer'] = type(self._layers[0])
+        self._mc_obj_types['layer'] = mclayer.layer.kernel_layer_type(
+            self._layers[0])
         self._mc_obj_types['pf'] = type(self._layers[0].pf)
 
         # Photon packet source.
@@ -357,7 +377,8 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
         self._packed = {'source': None,
                         'surface_layouts': None,
                         'layers': None, 'detectors': None,
-                        'trace': None, 'fluence': None}
+                        'trace': None, 'fluence': None,
+                        'fluorescence': None}
 
         # Sample surface reflectance/transmittance object
         self._detectors = detectors
@@ -380,6 +401,17 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
         if self._surface_layouts is not None:
             self._mc_obj_types['surface_layouts'] = \
                     type(self._surface_layouts), self._surface_layouts.types()
+
+        # Fluorescence configuration.
+        self._fluorescence = fluorescence
+        if self._fluorescence is not None:
+            self._mc_obj_types['fluorescence'] = type(self._fluorescence)
+            if self._fluence is not None:
+                raise ValueError('Fluence is not supported in fluorescence '
+                                 'simulations!')
+            if np.dtype(self.types.np_accu).itemsize < 8:
+                raise ValueError('Fluorescence simulations require 64-bit '
+                                 'detector accumulators!')
 
         # Monte Carlo simulator options.
         if options is None:
@@ -484,13 +516,20 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
         # Finalize and pack the sample layer stack.
         self._packed['layers'] = self._layers.cl_pack(self, self._packed['layers'])
 
-        if self._mc_obj_types['layer'] != type(self._layers[1]):
+        if self._mc_obj_types['layer'] != \
+                mclayer.layer.kernel_layer_type(self._layers[1]):
             raise ValueError('The layer type kind/type must not' \
                              'change between simulation calls!')
 
         if self._mc_obj_types['pf'] != type(self._layers[1].pf):
             raise ValueError('The scattering phase function kind/type must not' \
                              'change between simulation calls!')
+
+        # Pack the fluorescence configuration and lookup tables. The layers
+        # are left at the excitation wavelength for packing the source.
+        if self._fluorescence is not None:
+            self._packed['fluorescence'] = self._fluorescence.cl_pack(
+                self, self._packed['fluorescence'])
 
         # Finalize and pack the photon packet source.
         self._packed['source'], _, _ = \
@@ -540,7 +579,7 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
 
         context = {'layer': {}, 'pf': {}, 'source': {},
                    'trace': {}, 'fluence':{}, 'detectors': {},
-                   'surface_layouts': {}, 'mc': {}}
+                   'surface_layouts': {}, 'fluorescence': {}, 'mc': {}}
 
         # Collect the photon packet source type compile context.
         context['source'] = {
@@ -587,6 +626,14 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
                 'implementation': self._detectors.fetch_cl_implementation(self)
             }
 
+        # Collect the fluorescence compile context.
+        if self._fluorescence is not None:
+            context['fluorescence'] = {
+                'options': self._fluorescence.fetch_cl_options(self),
+                'declaration': self._fluorescence.fetch_cl_declaration(self),
+                'implementation': self._fluorescence.fetch_cl_implementation(self)
+            }
+
         # Collect the top and bottom sample surface geometry.
         if self._surface_layouts is not None:
             context['surface_layouts'] = {
@@ -616,6 +663,7 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
             context['fluence'].get('options', []),
             context['trace'].get('options', []),
             context['surface_layouts'].get('options', []),
+            context['fluorescence'].get('options', []),
             mc_options
         )
         # Convert the resolved simulator options to defines.
@@ -684,7 +732,7 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
 
         siz = self._sizeof_types = dict(
             zip(('layer', 'source', 'surface_layouts',
-                 'detectors', 'trace', 'fluence'), np_sizes))
+                 'detectors', 'trace', 'fluence', 'fluorescence'), np_sizes))
 
         if validate:
             n = cltypes.sizeof(self.layers[0].fetch_cl_type(self))
@@ -719,6 +767,14 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
                     raise RuntimeError(
                         'The host ({}) and device ({}) size of the McFluence '
                         'structure are not the same!'.format(n, siz['fluence']))
+
+            if self.fluorescence is not None:
+                n = cltypes.sizeof(self.fluorescence.fetch_cl_type(self))
+                if siz['fluorescence'] != n:
+                    raise RuntimeError(
+                        'The host ({}) and device ({}) size of the '
+                        'McFluorescence structure are not the same!'.format(
+                            n, siz['fluorescence']))
 
             if self.surface is not None:
                 n = cltypes.sizeof(self.surface.fetch_cl_type(self))
@@ -871,6 +927,9 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
         # allocate and intitalize an OpenCL buffer for the surface detector
         self.cl_r_buffer('detectors', packed.get('detectors'), size=4)
 
+        # allocate and intitalize an OpenCL buffer for the fluorescence
+        self.cl_r_buffer('fluorescence', packed.get('fluorescence'), size=4)
+
         # allocate and initialize an OpenCL buffer for the floating-point
         # lookup-table
         self.cl_r_float_lut()
@@ -945,6 +1004,8 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
             cl_buffers['fluence'],
 
             cl_buffers['detectors'],
+
+            cl_buffers['fluorescence'],
 
             self.cl_r_float_lut(False),
 
@@ -1260,6 +1321,11 @@ class Mc(mcworker.ClWorkerStandardBufferLutMixin, mcworker.ClWorkerRngMixin,
     def _get_trace(self) -> mctrace.Trace:
         return self._trace
     trace = property(_get_trace, None, None, 'Trace object if available.')
+
+    def _get_fluorescence(self) -> mcfluorescence.Fluorescence:
+        return self._fluorescence
+    fluorescence = property(_get_fluorescence, None, None,
+                            'Fluorescence configuration if available.')
 
     def _get_surface(self) -> mcsurface.SurfaceLayouts:
         return self._surface_layouts

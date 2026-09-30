@@ -20,4 +20,6 @@
 # along with PyXOpto. If not, see <https://www.gnu.org/licenses/>.
 ################################# End license ##################################
 
-from .layer import Layer, SpectralLayer, AnisotropicLayer, Layers
+from .fluorophore import Fluorophore
+from .fluorescence import Fluorescence, SpectralDetection, \
+                          alias_table, apply_quantum_yield, photon_to_energy

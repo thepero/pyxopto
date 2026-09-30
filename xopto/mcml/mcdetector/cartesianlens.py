@@ -31,9 +31,9 @@ from xopto.mcml.mcutil import axis
 
 
 class CartesianLens(Detector):
-    @staticmethod
-    def cl_type(mc: mcobject.McObject) -> cltypes.Structure:
+    def cl_type(self, mc: mcobject.McObject) -> cltypes.Structure:
         T = mc.types
+        spectral_fields = self.spectral_cl_fields(mc)
         class ClCartesianLens(cltypes.Structure):
             '''
             Structure that that represents a Cartesian lens detector
@@ -106,7 +106,7 @@ class CartesianLens(Detector):
                 ('n_x', T.mc_size_t),
                 ('n_y', T.mc_size_t),
                 ('offset', T.mc_size_t)
-            ]
+            ] + spectral_fields
         return ClCartesianLens
 
     def cl_declaration(self, mc: mcobject.McObject) -> str:
@@ -132,6 +132,7 @@ class CartesianLens(Detector):
             '	mc_size_t n_x;',
             '	mc_size_t n_y;',
             '	mc_size_t offset;',
+            self.spectral_cl_declaration(mc),
             '};'
         ))
 
@@ -169,6 +170,7 @@ class CartesianLens(Detector):
             '',
             '	__mc_detector_mem const struct Mc{}Detector *detector = '.format(Loc),
             '		mcsim_{}_detector(mcsim);'.format(loc),
+            self.SPECTRAL_OFFSET_CODE,
             '',
             '	__global mc_accu_t *address;',
             '	mc_int_t index_x, index_y;',
@@ -239,7 +241,7 @@ class CartesianLens(Detector):
             '	index = index_y*detector->n_x + index_x;',
             '',
             '	address = mcsim_accumulator_buffer_ex(',
-            '		mcsim, index + detector->offset);',
+            '		mcsim, index + detector->offset + spectral_offset);',
             '',
             '	uint32_t ui32w = weight_to_int(weight);',
             '',
@@ -496,6 +498,7 @@ class CartesianLens(Detector):
             target_type = self.cl_type(mc)
             target = target_type()
 
+        self.spectral_cl_pack(mc, target)
         allocation = mc.cl_allocate_rw_accumulator_buffer(self, self.shape)
         target.offset = allocation.offset
 

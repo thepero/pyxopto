@@ -30,9 +30,9 @@ from xopto.mcml.mcutil.lut import CollectionLut
 
 
 class Total(Detector):
-    @staticmethod
-    def cl_type(mc: mcobject.McObject) -> cltypes.Structure:
+    def cl_type(self, mc: mcobject.McObject) -> cltypes.Structure:
         T = mc.types
+        spectral_fields = self.spectral_cl_fields(mc)
         class ClTotal(cltypes.Structure):
             '''
             Structure that that represents a detector in the Monte Carlo
@@ -52,7 +52,7 @@ class Total(Detector):
                 ('direction', T.mc_point3f_t),
                 ('cos_min', T.mc_fp_t),
                 ('offset', T.mc_size_t),
-            ]
+            ] + spectral_fields
         return ClTotal
 
     def cl_declaration(self, mc: mcobject.McObject) -> str:
@@ -66,6 +66,7 @@ class Total(Detector):
             '	mc_point3f_t direction;'
             '	mc_fp_t cos_min;',
             '	mc_size_t offset;',
+            self.spectral_cl_declaration(mc),
             '};'
         ))
 
@@ -94,8 +95,9 @@ class Total(Detector):
             '',
             '	__mc_detector_mem const struct Mc{}Detector *detector = '.format(Loc),
             '		mcsim_{}_detector(mcsim);'.format(loc),
+            self.SPECTRAL_OFFSET_CODE,
             '',
-            '	address = mcsim_accumulator_buffer_ex(mcsim, detector->offset);',
+            '	address = mcsim_accumulator_buffer_ex(mcsim, detector->offset + spectral_offset);',
             '',
             '	mc_point3f_t detector_direction = detector->direction;',
             '	uint32_t ui32w = weight_to_int(weight)*',
@@ -186,6 +188,7 @@ class Total(Detector):
             target_type = self.cl_type(mc)
             target = target_type()
 
+        self.spectral_cl_pack(mc, target)
         allocation = mc.cl_allocate_rw_accumulator_buffer(self, self.shape)
         target.offset = allocation.offset
 

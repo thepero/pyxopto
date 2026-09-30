@@ -30,9 +30,9 @@ from xopto.mcml.mcutil import axis
 
 
 class Radial(Detector):
-    @staticmethod
-    def cl_type(mc: mcobject.McObject) -> cltypes.Structure:
+    def cl_type(self, mc: mcobject.McObject) -> cltypes.Structure:
         T = mc.types
+        spectral_fields = self.spectral_cl_fields(mc)
         class ClRadial(cltypes.Structure):
             '''
             Structure that that represents a detector in the Monte Carlo
@@ -73,7 +73,7 @@ class Radial(Detector):
                 ('n', T.mc_size_t),
                 ('offset', T.mc_size_t),
                 ('log_scale', T.mc_int_t),
-            ]
+            ] + spectral_fields
         return ClRadial
 
     def cl_declaration(self, mc: mcobject.McObject) -> str:
@@ -92,6 +92,7 @@ class Radial(Detector):
             '	mc_size_t n;',
             '	mc_size_t offset;',
             '	mc_int_t log_scale;',
+            self.spectral_cl_declaration(mc),
             '};'
         ))
 
@@ -125,6 +126,7 @@ class Radial(Detector):
             '',
             '	__mc_detector_mem const struct Mc{}Detector *detector = '.format(Loc),
             '		mcsim_{}_detector(mcsim);'.format(loc),
+            self.SPECTRAL_OFFSET_CODE,
             '',
             '	mc_fp_t dx = pos->x - detector->position.x;',
             '	mc_fp_t dy = pos->y - detector->position.y;',
@@ -137,7 +139,7 @@ class Radial(Detector):
             '	size_t index = mc_clip(r_index, 0, detector->n - 1);',
             '',
             '	address = mcsim_accumulator_buffer_ex(',
-            '		mcsim, detector->offset + index);',
+            '		mcsim, detector->offset + spectral_offset + index);',
             '',
             '	mc_point3f_t detector_direction = detector->direction;',
             '	uint32_t ui32w = weight_to_int(weight)*',
@@ -270,6 +272,7 @@ class Radial(Detector):
             target_type = self.cl_type(mc)
             target = target_type()
 
+        self.spectral_cl_pack(mc, target)
         allocation = mc.cl_allocate_rw_accumulator_buffer(self, self.shape)
         target.offset = allocation.offset
 

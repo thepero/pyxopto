@@ -240,6 +240,113 @@ class Detector(DetectorAny):
         super().__init__()
         self._nphotons = int(nphotons)
         self._raw_data = raw_data
+        # spatial shape of the accumulators (without spectral axes)
+        self._base_shape = tuple(raw_data.shape)
+        self._spectral = None
+        self._spectral_wavelengths = None
+
+    SPECTRAL_OFFSET_CODE = '\n'.join((
+        '	mc_size_t spectral_offset = 0;',
+        '	#if MC_USE_FLUORESCENCE',
+        '		if (!mcsim_detector_spectral_offset(',
+        '				mcsim, &detector->spectral, &spectral_offset))',
+        '			return; /* wavelength out of the detected range */',
+        '	#endif',
+    ))
+    '''
+    OpenCL code that computes the accumulator offset of the current photon
+    packet wavelength and generation in fluorescence simulations
+    (spectral_offset). Requires a "detector" pointer to the detector
+    structure that includes the spectral field.
+    '''
+
+    def _get_spectral(self):
+        return self._spectral
+    def _set_spectral(self, value):
+        self._spectral = value
+    spectral = property(_get_spectral, _set_spectral, None,
+                        'Spectral and generation resolution '
+                        '(:py:class:`~xopto.mcml.mcfluorescence.SpectralDetection`) '
+                        'used in fluorescence simulations. The accumulated '
+                        'data get two leading axes (generation, wavelength).')
+
+    def _get_spectral_wavelengths(self) -> np.ndarray:
+        return self._spectral_wavelengths
+    spectral_wavelengths = property(
+        _get_spectral_wavelengths, None, None,
+        'Center wavelengths (m) of the spectral bins after a fluorescence '
+        'simulation or None.')
+
+    def _get_generations(self) -> np.ndarray:
+        if self._spectral_wavelengths is None:
+            return None
+        return np.arange(self._raw_data.shape[0])
+    generations = property(
+        _get_generations, None, None,
+        'Generation (number of fluorescence emission events) of the first '
+        'data axis after a fluorescence simulation or None. The last '
+        'generation collects all the higher generations.')
+
+    def copy_spectral_state(self, other: 'Detector'):
+        '''
+        Copy the spectral configuration and state from a detector
+        of the same type (used when copying detectors).
+        '''
+        self._base_shape = other._base_shape
+        self._spectral = other._spectral
+        self._spectral_wavelengths = other._spectral_wavelengths
+
+    def spectral_cl_fields(self, mc: mcobject.McObject) -> list:
+        '''
+        Structure fields of the spectral detection parameters that are
+        appended to the detector structure in fluorescence simulations.
+        '''
+        if getattr(mc, 'fluorescence', None) is None:
+            return []
+        from xopto.mcml.mcfluorescence.fluorescence import \
+            spectral_detection_cl_type
+        return [('spectral', spectral_detection_cl_type(mc))]
+
+    def spectral_cl_declaration(self, mc: mcobject.McObject) -> str:
+        '''
+        Declaration of the spectral detection parameters that is appended to
+        the detector structure in fluorescence simulations.
+        '''
+        if getattr(mc, 'fluorescence', None) is None:
+            return ''
+        return '	McDetectorSpectral spectral;'
+
+    def spectral_cl_pack(self, mc: mcobject.McObject,
+                         target: cltypes.Structure):
+        '''
+        Resize the accumulators for a fluorescence simulation to
+        (generation, wavelength, \\*spatial shape) and pack the spectral
+        detection parameters. Must be called before allocating the
+        accumulator buffer.
+        '''
+        fluorescence = getattr(mc, 'fluorescence', None)
+        if fluorescence is None:
+            if self._raw_data.shape != self._base_shape:
+                self._raw_data = np.zeros(self._base_shape)
+                self._nphotons = 0
+            self._spectral_wavelengths = None
+            return
+
+        from xopto.mcml.mcfluorescence import SpectralDetection
+        if self._spectral is None:
+            self._spectral = SpectralDetection()
+        first, binsize, n, max_generation = self._spectral.resolve(fluorescence)
+        shape = (max_generation + 1, n) + self._base_shape
+        if self._raw_data.shape != shape:
+            self._raw_data = np.zeros(shape)
+            self._nphotons = 0
+        self._spectral_wavelengths = self._spectral.wavelengths(fluorescence)
+
+        target.spectral.first = first
+        target.spectral.binsize = binsize
+        target.spectral.n = n
+        target.spectral.max_generation = max_generation
+        target.spectral.stride = int(np.prod(self._base_shape))
 
     def _get_raw(self) -> np.ndarray:
         return self._raw_data
@@ -456,6 +563,13 @@ class Detectors(mcobject.McObject):
 
             specular = detectors.specular
             specular = type(specular)(specular)
+
+            # the copy constructors are not aware of the spectral state
+            for copy, original in ((top, detectors.top),
+                                   (bottom, detectors.bottom),
+                                   (specular, detectors.specular)):
+                if isinstance(copy, Detector):
+                    copy.copy_spectral_state(original)
         else:
             if top is None:
                 top = DetectorDefault()

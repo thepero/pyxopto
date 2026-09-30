@@ -138,8 +138,8 @@ inline mc_int_t mcsim_boundary(McSim *psim, mc_int_t nextLayerIndex){
 		mc_int_t exNextMaterialIndex;
 	#endif
 
-	__constant const McLayer *currentLayer = mcsim_current_layer(psim);
-	__constant const McLayer *nextLayer = mcsim_next_layer(psim);
+	__mc_layer_mem const McLayer *currentLayer = mcsim_current_layer(psim);
+	__mc_layer_mem const McLayer *nextLayer = mcsim_next_layer(psim);
 
 	mc_point3f_t *dir = mcsim_direction(psim);
 
@@ -359,6 +359,14 @@ inline void mcsim_scatter(McSim *psim){
 /*############## End scattering phase function implementation ###############*/
 
 
+/*################### Start fluorescence implementation ######################*/
+/* Fluorescence implementation goes here - DO NOT EDIT! */
+/* START_FLUORESCENCE_IMPLEMENTATION_BLOCK */
+{{ fluorescence.implementation or '' }}
+/* END_FLUORESCENCE_IMPLEMENTATION_BLOCK */
+/*#################### End fluorescence implementation #######################*/
+
+
 /*##################### Start detectors implementation #######################*/
 /* User-defined surface reflectance/transmittance detector implementation
    goes here - DO NOT EDIT! */
@@ -394,6 +402,18 @@ inline void mcsim_scatter(McSim *psim){
 
 
 /*#################### Start Monte Carlo OpenCL kernel #######################*/
+#if MC_USE_FLUORESCENCE
+	#if MC_METHOD != ALBEDO_REJECTION
+		#error "Fluorescence requires the albedo rejection Monte Carlo method!"
+	#endif
+	/** @brief Starts a new photon packet at the excitation wavelength. */
+	#define mcsim_fluorescence_launch(psim) \
+		(mcsim_set_wavelength_index(psim, mcsim_fluorescence(psim)->excitation_index), \
+		 (psim)->state.generation = 0)
+#else
+	#define mcsim_fluorescence_launch(psim) ((void)(psim))
+#endif
+
 __kernel void McKernel(
 	mc_cnt_t num_packets,
 	__global mc_cnt_t *num_packets_done,
@@ -406,7 +426,7 @@ __kernel void McKernel(
 	__global uint32_t const *rng_state_a,	// must nut be constant - insufficient memory on GPU
 
 	uint32_t num_layers,
-	__constant McLayer const *layers,
+	__mc_layer_mem McLayer const *layers,
 
 	__mc_source_mem McSource const *source,
 	__mc_surface_mem McSurfaceLayouts const *surface_layouts,
@@ -416,6 +436,8 @@ __kernel void McKernel(
 	__mc_fluence_mem McFluence const *fluence,
 
 	__mc_detector_mem McDetectors const *detectors,
+
+	__mc_fluorescence_mem McFluorescence const *fluorescence,
 
 	__mc_fp_lut_mem mc_fp_t const *fp_lut_array,
 
@@ -454,6 +476,11 @@ __kernel void McKernel(
 			#if MC_USE_FLUENCE && MC_USE_FLUENCE_CACHE
 			,mc_accucache_initializer
 			#endif
+			#if MC_USE_FLUORESCENCE
+			,0			/* mc_int_t wl_index: Wavelength index (set at packet launch). */
+			,0			/* mc_int_t generation: Number of fluorescence emission events. */
+			,layers		/* McLayer *wl_layers: Layers at the current wavelength. */
+			#endif
 		},
 
 		num_layers,					/* mc_int_t num_layers: Number of layers including the two outermost layers. */
@@ -484,6 +511,10 @@ __kernel void McKernel(
 			,detectors				/* McDetectors : Surface and specular detectors. */
 		#endif
 
+		#if MC_USE_FLUORESCENCE
+			,fluorescence			/* McFluorescence: Fluorescence configuration. */
+		#endif
+
 		,integer_buffer		/* __global mc_int_t *fp_buffer: Common integer buffer. */
 		,float_buffer		/* __global mc_fp_t *fp_buffer: Common floating-point buffer. */
 		,accumulator_buffer	/* __global mc_accu_t *accumulator_buffer: Common accumulator buffer. */
@@ -508,6 +539,10 @@ __kernel void McKernel(
 
 	#if !MC_USE_DETECTORS
 		(void)detectors;
+	#endif
+
+	#if !MC_USE_FLUORESCENCE
+		(void)fluorescence;
 	#endif
 
 	#if MC_USE_SCATTERING_THRESHOLD
@@ -570,6 +605,7 @@ __kernel void McKernel(
 		#endif
 
 		/* launch a new photon packet */
+		mcsim_fluorescence_launch(&sim);
 		mcsim_launch(&sim);
 		mcsim_event_flags_add(&sim, MC_EVENT_PACKET_LAUNCH);
 
@@ -799,15 +835,22 @@ __kernel void McKernel(
 					#if MC_METHOD == ALBEDO_REJECTION
 						/* Do absorption or scattering only when no layer boundary has been hit.*/
 						if (mcsim_random(&sim) < mc_layer_mua_inv_mut(mcsim_current_layer(&sim), mcsim_direction(&sim))){
-							/* Deposit the entire weight of the packet. */
-							deposit = mcsim_weight(&sim);
-							done = true;
-							mcsim_adjust_weight(&sim, deposit);
-							mcsim_event_flags_add(&sim, MC_EVENT_PACKET_ABSORPTION);
-							#if MC_USE_FLUENCE
-								mcsim_fluence_deposit_weight(
-									&sim, mcsim_position(&sim), deposit);
+							#if MC_USE_FLUORESCENCE
+							/* Absorbed by a fluorophore and re-emitted at a new
+							   wavelength in an isotropic direction? */
+							if (!mcsim_fluorescence_absorb(&sim))
 							#endif
+							{
+								/* Deposit the entire weight of the packet. */
+								deposit = mcsim_weight(&sim);
+								done = true;
+								mcsim_adjust_weight(&sim, deposit);
+								mcsim_event_flags_add(&sim, MC_EVENT_PACKET_ABSORPTION);
+								#if MC_USE_FLUENCE
+									mcsim_fluence_deposit_weight(
+										&sim, mcsim_position(&sim), deposit);
+								#endif
+							}
 						} else {
 							/* Scatter the photon packet. */
 							mcsim_scatter(&sim);
@@ -917,6 +960,7 @@ __kernel void McKernel(
 					#endif
 
 					/* launch a new photon packet */
+					mcsim_fluorescence_launch(&sim);
 					mcsim_launch(&sim);
 					mcsim_event_flags_add(&sim, MC_EVENT_PACKET_LAUNCH);
 
@@ -960,6 +1004,9 @@ __kernel void sizeof_datatypes(__global uint *n){
 		#endif
 		#if MC_USE_FLUENCE
 		n[5] = sizeof(McFluence);
+		#endif
+		#if MC_USE_FLUORESCENCE
+		n[6] = sizeof(McFluorescence);
 		#endif
 	}
 };

@@ -31,9 +31,9 @@ from xopto.mcml.mcutil import axis
 
 
 class SymmetricX(Detector):
-    @staticmethod
-    def cl_type(mc: mcobject.McObject) -> cltypes.Structure:
+    def cl_type(self, mc: mcobject.McObject) -> cltypes.Structure:
         T = mc.types
+        spectral_fields = self.spectral_cl_fields(mc)
         class ClSymmetricX(cltypes.Structure):
             '''
             Structure that that represents a Cartesian detector symmetric
@@ -79,7 +79,7 @@ class SymmetricX(Detector):
                 ('n_half', T.mc_size_t),
                 ('log_scale', T.mc_int_t),
                 ('offset', T.mc_size_t),
-            ]
+            ] + spectral_fields
 
         return ClSymmetricX
 
@@ -99,6 +99,7 @@ class SymmetricX(Detector):
             '	mc_size_t n_half;',
             '	mc_int_t log_scale;',
             '	mc_size_t offset;',
+            self.spectral_cl_declaration(mc),
             '};'
         ))
 
@@ -130,6 +131,7 @@ class SymmetricX(Detector):
             '	__global mc_accu_t *address;',
             '	__mc_detector_mem const struct Mc{}Detector *detector = '.format(Loc),
             '		mcsim_{}_detector(mcsim);'.format(loc),
+            self.SPECTRAL_OFFSET_CODE,
             ''
             '	mc_fp_t x = mc_fabs(pos->x - detector->position_x);',
             '',
@@ -144,7 +146,7 @@ class SymmetricX(Detector):
             '		index_x + detector->n_half : detector->n_half - index_x - 1;',
             '',
             '	address = mcsim_accumulator_buffer_ex(',
-            '		mcsim, detector->offset + accu_index);',
+            '		mcsim, detector->offset + spectral_offset + accu_index);',
             '',
             '	mc_point3f_t detector_direction = detector->direction;',
             '	uint32_t ui32w = weight_to_int(weight)*',
@@ -268,6 +270,7 @@ class SymmetricX(Detector):
             target_type = self.cl_type(mc)
             target = target_type()
 
+        self.spectral_cl_pack(mc, target)
         allocation = mc.cl_allocate_rw_accumulator_buffer(self, self.shape)
         target.offset = allocation.offset
 

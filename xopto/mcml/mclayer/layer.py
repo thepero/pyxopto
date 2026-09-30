@@ -301,6 +301,20 @@ class Layer(mcobject.McObject):
         self._pf = pf
     pf = property(_get_pf, _set_pf, None, 'Phase function object.')
 
+    def mua_at(self, index: int) -> float:
+        '''
+        Absorption coefficient at the given wavelength index of a fluorescence
+        simulation. A regular layer has wavelength independent properties.
+        '''
+        return self.mua
+
+    def set_wavelength_index(self, index: int):
+        '''
+        Select the wavelength index of a fluorescence simulation. A regular
+        layer has wavelength independent properties.
+        '''
+        pass
+
     def cl_pack(self, mc: mcobject.McObject, target: cltypes.Structure = None) \
             -> cltypes.Structure:
         '''
@@ -386,6 +400,211 @@ class Layer(mcobject.McObject):
 
     def __repr__(self):
         return  '{:s} # id 0x{:>08X}.'.format(self.__str__(), id(self))
+
+
+class SpectralLayer(Layer):
+    '''
+    Class that represents a sample layer with wavelength dependent optical
+    properties and optional fluorophores. Used in fluorescence simulations
+    (see :py:class:`xopto.mcml.mcfluorescence.Fluorescence`).
+
+    The properties n, mua, mus and pf of the layer return the values at the
+    currently selected wavelength index, which allows the existing
+    simulator objects (sources, detectors, ...) to use a spectral layer
+    as a regular layer. The simulator selects the excitation wavelength
+    before packing the photon packet source.
+    '''
+    def __init__(self, d: float, n, mua, mus, pf, fluorophores=None):
+        '''
+        Spectral layer object constructor. All the spectra are defined on the
+        wavelength grid of the Fluorescence object that is passed to the
+        simulator. Scalar values are used at all wavelengths.
+
+        Parameters
+        ----------
+        d: float
+            Layer thickness (m).
+        n: float or np.ndarray
+            Index of refraction.
+        mua: float or np.ndarray
+            Absorption coefficient of the base medium (1/m), i.e. without
+            the absorption of the fluorophores.
+        mus: float or np.ndarray
+            Scattering (NOT reduced) coefficient of the base medium (1/m),
+            i.e. without the scattering of the fluorophores.
+        pf: mcpf.PfBase or Sequence[mcpf.PfBase]
+            Scattering phase function or a sequence of scattering phase
+            functions (one for each wavelength) of the same type, e.g.
+            [mcpf.Hg(g) for g in g_spectrum].
+        fluorophores: Sequence[mcfluorescence.Fluorophore]
+            Fluorophores that are embedded in the layer.
+        '''
+        self._d = float(d)
+        self._n_spectrum = self._spectrum(n)
+        self._mua_spectrum = self._spectrum(mua)
+        self._mus_spectrum = self._spectrum(mus)
+        if isinstance(pf, PfBase):
+            pf = [pf]
+        self._pfs = list(pf)
+        if not self._pfs:
+            raise ValueError('At least one scattering phase function is required!')
+        for item in self._pfs:
+            if type(item) != type(self._pfs[0]):
+                raise TypeError('All the scattering phase functions of a '
+                                'spectral layer must be of the same type!')
+        self._fluorophores = list(fluorophores) if fluorophores else []
+        self._wl_index = 0
+
+    @staticmethod
+    def _spectrum(value) -> np.ndarray:
+        data = np.atleast_1d(np.asarray(value, dtype=np.float64))
+        if data.ndim != 1:
+            raise ValueError('Spectra must be scalars or 1D arrays!')
+        return data
+
+    @staticmethod
+    def _at(data, index: int):
+        return data[index if len(data) > 1 else 0]
+
+    def set_wavelength_index(self, index: int):
+        ''' Select the wavelength index of the n, mua, mus and pf properties. '''
+        self._wl_index = int(index)
+
+    def _get_wavelength_index(self) -> int:
+        return self._wl_index
+    wavelength_index = property(_get_wavelength_index, set_wavelength_index,
+                                None, 'Currently selected wavelength index.')
+
+    def num_wavelengths(self) -> int:
+        '''
+        Number of wavelengths required by the spectra of the layer
+        (1 if all the properties are wavelength independent).
+        '''
+        sizes = [self._n_spectrum.size, self._mua_spectrum.size,
+                 self._mus_spectrum.size, len(self._pfs)]
+        for item in self._fluorophores:
+            sizes.extend([item.mua.size, item.mus.size, item.emission.size])
+        return max(sizes)
+
+    def check(self, num_wavelengths: int):
+        '''
+        Check if the spectra are compatible with the wavelength grid.
+        Raises ValueError on error.
+        '''
+        for name, size in (('refractive index', self._n_spectrum.size),
+                           ('absorption', self._mua_spectrum.size),
+                           ('scattering', self._mus_spectrum.size),
+                           ('phase function', len(self._pfs))):
+            if size not in (1, num_wavelengths):
+                raise ValueError(
+                    'The {} spectrum of the layer has {} values but the '
+                    'wavelength grid has {} points!'.format(
+                        name, size, num_wavelengths))
+        for item in self._fluorophores:
+            item.check(num_wavelengths)
+
+    def _set_n(self, n):
+        self._n_spectrum = self._spectrum(n)
+    def _get_n(self) -> float:
+        return float(self._at(self._n_spectrum, self._wl_index))
+    n = property(_get_n, _set_n, None,
+                 'Refractive index at the selected wavelength.')
+
+    def _get_mua(self) -> float:
+        return self.mua_at(self._wl_index)
+    def _set_mua(self, mua):
+        self._mua_spectrum = self._spectrum(mua)
+    mua = property(_get_mua, _set_mua, None,
+                   'Total absorption coefficient (base medium and '
+                   'fluorophores) at the selected wavelength (1/m). '
+                   'Setting the property sets the base absorption spectrum.')
+
+    def _get_mus(self) -> float:
+        return self.mus_at(self._wl_index)
+    def _set_mus(self, mus):
+        self._mus_spectrum = self._spectrum(mus)
+    mus = property(_get_mus, _set_mus, None,
+                   'Total scattering coefficient (base medium and '
+                   'fluorophores) at the selected wavelength (1/m). '
+                   'Setting the property sets the base scattering spectrum.')
+
+    def _get_pf(self) -> mcpf.PfBase:
+        return self._at(self._pfs, self._wl_index)
+    def _set_pf(self, pf):
+        if isinstance(pf, PfBase):
+            pf = [pf]
+        pf = list(pf)
+        for item in pf:
+            if type(item) != type(self._pfs[0]):
+                raise ValueError('The scattering phase function type '
+                                 'of the layer must not change!')
+        self._pfs = pf
+    pf = property(_get_pf, _set_pf, None,
+                  'Scattering phase function at the selected wavelength.')
+
+    def _get_fluorophores(self) -> list:
+        return self._fluorophores
+    fluorophores = property(_get_fluorophores, None, None,
+                            'Fluorophores embedded in the layer.')
+
+    def _get_n_spectrum(self) -> np.ndarray:
+        return self._n_spectrum
+    n_spectrum = property(_get_n_spectrum, None, None,
+                          'Refractive index spectrum.')
+
+    def _get_mua_spectrum(self) -> np.ndarray:
+        return self._mua_spectrum
+    mua_base = property(_get_mua_spectrum, None, None,
+                        'Absorption spectrum of the base medium (1/m).')
+
+    def _get_mus_spectrum(self) -> np.ndarray:
+        return self._mus_spectrum
+    mus_base = property(_get_mus_spectrum, None, None,
+                        'Scattering spectrum of the base medium (1/m).')
+
+    def mua_at(self, index: int) -> float:
+        ''' Total absorption coefficient at the given wavelength index. '''
+        return float(self._at(self._mua_spectrum, index)) + \
+            sum(item.mua_at(index) for item in self._fluorophores)
+
+    def mus_at(self, index: int) -> float:
+        ''' Total scattering coefficient at the given wavelength index. '''
+        return float(self._at(self._mus_spectrum, index)) + \
+            sum(item.mus_at(index) for item in self._fluorophores)
+
+    def todict(self) -> dict:
+        '''
+        Export object to a dict.
+        '''
+        return {'d': self._d, 'n': self._n_spectrum.tolist(),
+                'mua': self._mua_spectrum.tolist(),
+                'mus': self._mus_spectrum.tolist(),
+                'pf': [item.todict() for item in self._pfs],
+                'fluorophores': [item.todict() for item in self._fluorophores],
+                'type': 'SpectralLayer'}
+
+    @classmethod
+    def fromdict(cls, data: dict) -> 'SpectralLayer':
+        '''
+        Create a new object from a dict created by :py:meth:`todict`.
+        '''
+        from xopto.mcml.mcfluorescence import Fluorophore
+
+        data_ = dict(data)
+        if data_.pop('type') != 'SpectralLayer':
+            raise ValueError('Cannot create a SpectralLayer from the data!')
+        pfs = [getattr(mcpf, item['type']).fromdict(item)
+               for item in data_.pop('pf')]
+        fluorophores = [Fluorophore.fromdict(item)
+                        for item in data_.pop('fluorophores', [])]
+        return cls(pf=pfs, fluorophores=fluorophores, **data_)
+
+    def __str__(self):
+        return 'SpectralLayer(d={}, n=<{} values>, mua=<{} values>, '\
+               'mus=<{} values>, pf=<{} x {}>, fluorophores={})'.format(
+                   self._d, self._n_spectrum.size, self._mua_spectrum.size,
+                   self._mus_spectrum.size, len(self._pfs),
+                   type(self._pfs[0]).__name__, len(self._fluorophores))
 
 
 class AnisotropicLayer(mcobject.McObject):
@@ -790,6 +1009,14 @@ class AnisotropicLayer(mcobject.McObject):
         return  '{:s} # id 0x{:>08X}.'.format(self.__str__(), id(self))
 
 
+def kernel_layer_type(layer) -> type:
+    '''
+    Type of the layer as seen by the OpenCL kernel. A SpectralLayer uses the
+    same kernel representation as a Layer and can be mixed with it.
+    '''
+    return Layer if isinstance(layer, Layer) else type(layer)
+
+
 class Layers(mcobject.McObject):
     '''
     Class that represents a stack of layers forming the sample.
@@ -852,7 +1079,7 @@ class Layers(mcobject.McObject):
         if self._pf_type is None:
             self._pf_type = type(self._layers[1].pf)
         if self._layer_type is None:
-            self._layer_type = type(self._layers[0])
+            self._layer_type = kernel_layer_type(self._layers[0])
 
         for layer in self._layers:
             if not isinstance(layer, (Layer, AnisotropicLayer)):
@@ -860,7 +1087,7 @@ class Layers(mcobject.McObject):
                     'All the sample layers must be instances of Layer or '
                     'AnisotropicLayer but found {:s}!'.format(
                         type(layer).__name__))
-            if self._layer_type != type(layer):
+            if self._layer_type != kernel_layer_type(layer):
                 raise TypeError(
                     'All the sample layers must use the same type!'
                     'Found {} and {}!'.format(
@@ -937,9 +1164,17 @@ class Layers(mcobject.McObject):
         Returns
         ------- 
         clarray: cltypes.Structure*len(self)
-            Array of ClLayers.
+            Array of ClLayers. In fluorescence simulations the array
+            contains the layer stack for each wavelength of the grid
+            (layers[wavelength][layer]).
         '''
-        return self._layers[0].fetch_cl_type(mc)*len(self._layers)
+        return self._layers[0].fetch_cl_type(mc)*\
+            (len(self._layers)*self._num_wavelengths(mc))
+
+    @staticmethod
+    def _num_wavelengths(mc: mcobject.McObject) -> int:
+        fluorescence = getattr(mc, 'fluorescence', None)
+        return 1 if fluorescence is None else fluorescence.num_wavelengths
 
     def cl_pack(self, mc: mcobject.McObject, target: cltypes.Array = None) \
             -> cltypes.Array:
@@ -966,13 +1201,46 @@ class Layers(mcobject.McObject):
         properties of the other/neighboring layers in the stack
         (PACKS top, bottom, cos_critical_top, cos_critical_bottom, but
         USES the LAYER instance to PACK all the remaining fields).
+
+        In fluorescence simulations the layer stack is packed for each
+        wavelength of the grid. The layers are left at the excitation
+        wavelength, so that the photon packet source can use the refractive
+        index at the excitation wavelength.
         '''
-
         num_layers = len(self._layers)
+        num_wl = self._num_wavelengths(mc)
 
-        if target is None or len(target) != num_layers:
+        if target is None or len(target) != num_layers*num_wl:
             target_type = self.fetch_cl_type(mc)
             target = target_type()
+
+        fluorescence = getattr(mc, 'fluorescence', None)
+        if fluorescence is None:
+            self._pack_stack(mc, target, 0)
+        else:
+            for layer in self._layers:
+                if not isinstance(layer, Layer):
+                    raise TypeError('Fluorescence simulations support only '
+                                    'Layer and SpectralLayer layers!')
+                if isinstance(layer, SpectralLayer):
+                    layer.check(num_wl)
+            for wl_index in range(num_wl):
+                for layer in self._layers:
+                    layer.set_wavelength_index(wl_index)
+                self._pack_stack(mc, target, wl_index*num_layers)
+            for layer in self._layers:
+                layer.set_wavelength_index(fluorescence.excitation_index)
+
+        return target
+
+    def _pack_stack(self, mc: mcobject.McObject, target: cltypes.Array,
+                    base: int):
+        '''
+        Pack one layer stack into the target array starting at the
+        given index.
+        '''
+        num_layers = len(self._layers)
+        target = [target[base + index] for index in range(num_layers)]
 
         for index, layer in enumerate(self._layers):
             # pack the properties that do not depend on neighboring layers
@@ -1003,8 +1271,6 @@ class Layers(mcobject.McObject):
             target[index].cos_critical_bottom = cc_bottom
 
             layer.pf.cl_pack(mc, target[index].pf)
-
-        return target
 
     def todict(self) -> dict:
         '''
@@ -1039,6 +1305,7 @@ class Layers(mcobject.McObject):
         layers = []
         for item in data_.pop('layers'):
             T = {'Layer': Layer,
+                 'SpectralLayer': SpectralLayer,
                  'AnisotropicLayer': AnisotropicLayer}.get(item.get('type'))
 
             layers.append(T.fromdict(item))
