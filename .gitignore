@@ -59,6 +59,7 @@ xopto/mcml/kernel/__pycache__
 xopto/mcml/mcdetector/__pycache__
 xopto/mcml/mcdetector/probe/__pycache__
 xopto/mcml/mcfluence/__pycache__
+xopto/mcml/mcfluorescence/__pycache__
 xopto/mcml/mclayer/__pycache__
 xopto/mcml/mcobject/__pycache__
 xopto/mcml/mcoptions/__pycache__
