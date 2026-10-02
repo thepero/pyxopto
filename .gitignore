@@ -1,3 +1,7 @@
+# Python bytecode caches in any folder (e.g. __init__.cpython-313.pyc)
+__pycache__/
+*.py[cod]
+
 examples/__pycache__
 examples/mcml/__pycache__
 examples/mccyl/__pycache__
